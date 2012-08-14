@@ -70,6 +70,14 @@
           </programlisting>
         </para>
       </listitem>
+      <listitem>
+        <para>
+          Task definitions in a Cakefile
+          <programlisting>
+            task "build", "builds the source", -> ...
+          </programlisting>
+        </para>
+      </listitem>
     </itemizedlist>
     These must be either top level constructs or within previously recognized
     constructs. They may not be parenthesised or otherwise wrapped (e.g.
@@ -77,10 +85,11 @@
   </para>
   <para>
     The name of the SideKick node is the first (leftmost) recognizable
-    assignment if multiple possibilities are given.
+    assignment if multiple possibilities are given or the "real" class name.
     Property assignments will result in a dotted name.
-    E.g. <code>exports.E = D = class C</code> will show up as a single node
-    <code>exports.E class</code>.
+    E.g. <code>exports['E'] = D = class</code> will show up as a single node
+    <code>exports.E class</code> while <code>exports['E'] = D = class C</code>
+    will result in a node <code>C class</code>.
   </para>
   <para>
     The resulting tree represents the source structure (which is not
@@ -99,26 +108,33 @@
     <glossentry>
       <glossterm>Display function parameters</glossterm>
       <glossdef><para>
-        Display a simplified version of the parameter definition,
-        without default values.
+        Display a simplified version of the parameter definition, without
+        default values.
         Destructuring parameters are partially supported: In objects only
         the lookup keys are displayed. If a key in an array is to complex it
-        may be replaced by <code>_</code>.</para></glossdef>
+        may be replaced by an underline.</para></glossdef>
     </glossentry>
   </glosslist>
 </chapter>
 
-<chapter id="problems"><title>Known problems</title>
-  <itemizedlist>
-    <listitem>
-      <para>
-        Parsing is quite slow since the Lexer is based upon regular
-        expressions which do not (yet?) have a adequatly fast implementation
-        in Rhino.
-        It is therefore not advisable to let SideKick parse on keystrokes.
-      </para>
-    </listitem>
-  </itemizedlist>
+<chapter id="problems"><title>Known problems and limitations</title>
+  <para>Aside from above restrictions these problems (still) exist:
+    <itemizedlist>
+      <listitem>
+        <para>
+          Parsing is quite slow since the Lexer is based upon regular
+          expressions which do not (yet?) have a adequatly fast implementation
+          in Rhino.
+          It is therefore not advisable to let SideKick parse on keystrokes.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <code>extents</code> of class definitions are not supported / shown.
+        </para>
+      </listitem>
+    </itemizedlist>
+  </para>
 </chapter>
 
 <chapter id="license"><title>License and Acknowledgments</title>

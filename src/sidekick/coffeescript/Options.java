@@ -2,7 +2,8 @@ package sidekick.coffeescript;
 
 import org.gjt.sp.jedit.*;
 
-public enum Options {INSTANCE;  // The Options singleton
+/** Singleton for easy access to plugin options */
+public enum Options {INSTANCE;
     public static final String
     OPTION_PREFIX = CoffeeScriptSideKickPlugin.OPTION_PREFIX;
 

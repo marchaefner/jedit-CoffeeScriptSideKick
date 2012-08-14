@@ -9,8 +9,8 @@ import sidekick.SideKickParsedData;
 import errorlist.DefaultErrorSource;
 import errorlist.ErrorSource;
 
-/** Wrapper around the actual parser, providing callbacks for TreeNode
-    construction error reporting and logging
+/** Wrapper around the actual parser, providing options and callbacks for
+    TreeNode construction, error reporting and logging
     */
 public class ParserRunner{
     private Buffer buffer;
