@@ -1,0 +1,28 @@
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.activate=defer
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.name=CoffeeScriptSideKick
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.version=0.8
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.author=Marc H&auml;fner
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.docs=index.html
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.description=CoffeScript parser for SideKick
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.docs=index.html
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.option-pane=coffeescript
+
+# dependencies
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.0=jdk 1.6
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.1=jedit 04.05.02.00
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.2=plugin errorlist.ErrorListPlugin 1.9
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.3=plugin sidekick.SideKickPlugin 1.4
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.5=plugin rhino.RhinoPlugin 1.7R4_1
+
+# registration with SideKick as a mode parser
+sidekick.parser.coffeescript.label=coffeescript
+mode.coffeescript.sidekick.parser=coffeescript
+
+# option pane
+options.coffeescript.label=CoffeeScript
+options.coffeescript.code=new sidekick.coffeescript.OptionPane();
+options.coffeescript.displayCodeParameters.label=Display function parameters
+options.coffeescript.displayCodeParameters=false
+options.coffeescript.showErrors.label=Show parser errors in ErrorList
+options.coffeescript.showErrors=true
+

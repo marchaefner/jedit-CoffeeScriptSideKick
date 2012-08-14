@@ -1,0 +1,27 @@
+  * Optional use of icons.
+  * Delegate embedded JavaScript to the appropiate (partial) parser.
+
+Recognize more stuff
+--------------------
+  * parenthesised expressions, e.g. `f=(->)`, `(class C)`
+  * assignments in code parameters, e.g. `foo(f = ->)`
+  * assignments in closures, e.g. `(-> globals.f = ->)()`
+  * assignments in objects, e.g. `x = {f: ->}`
+
+Rewrite AST walker / add a "Scope Mode"
+---------------------------------------
+  * Track scope (i.e. all assignments & parameters) and build tree
+    accordingly.
+  * Resolve dotted names and allow for "phantom nodes" in the tree,
+    e.g. `exports.f = ->`
+  * Recognize prototype construction:
+      - prototype assignments to a previously defined function / class
+      - `this.x` assignments in methods
+  * Allow to switch between modes: "Scope", "Source", "Source+Docco".
+
+Tricky stuff
+------------
+  * Ponder speeding up the lexer.
+  * docco support: recognize markdown headers in comments (which are discarded
+    by the lexer)
+  * class' `extends` values (which are expressions).
