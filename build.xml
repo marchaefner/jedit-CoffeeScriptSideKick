@@ -5,12 +5,16 @@
     <property file="../build.properties" />
     <property file="build.properties" />
 
-    <property name="node.executable" value="node" />
-    <property name="coffescript.dir" location="coffee-script" />
     <property name="user-doc.xml" location="users-guide.xml" />
     <property name="src.dir" location="src" />
     <property name="build.dir" location="build" />
     <property name="javadoc.packagenames" value="sidekick.coffeescript" />
+
+    <!--If you want to compile the CoffeeScript source too, change these
+        accordingly.-->
+    <property name="always.compile.coffeescript" value="false" />
+    <property name="node.executable" value="node" />
+    <property name="coffescript.dir" location="coffee-script" />
 
     <import file="${build.support}/plugin-build.xml" />
 
@@ -43,16 +47,16 @@
         <antcall target="compile.javascript" />
     </target>
 
-    <target name="check-coffeescript-source">
-        <uptodate property="coffeescript.isUpToDate" targetfile="./CoffeeScriptParser.js" >
-            <srcresources>
-                <fileset dir="${src.dir}" includes="*.coffee"/>
-                <fileset dir="${coffescript.dir}/src" includes="*.coffee"/>
-            </srcresources>
-        </uptodate>
+    <target name="check-javascript-file">
+        <condition property="do.compile.coffeescript">
+            <or>
+                <istrue value="${always.compile.coffeescript}" />
+                <not><available file="./CoffeeScriptParser.js" /></not>
+            </or>
+        </condition>
     </target>
 
-    <target name="compile.coffeescript" depends="check-coffeescript-source" unless="coffeescript.isUpToDate">
+    <target name="compile.coffeescript" depends="check-javascript-file" if="do.compile.coffeescript">
         <mkdir dir="${build.dir}/coffee-script" />
         <exec executable="${node.executable}" failonerror="true">
             <arg value="${coffescript.dir}/bin/cake" />
