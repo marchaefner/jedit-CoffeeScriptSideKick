@@ -37,7 +37,7 @@ option_defaults =
 # Helper to execute a command with a callback
 run = (command, args, callback) ->
     proc =         spawn command, args
-    proc.stdout.pipe process.stdout
+    proc.stdout.pipe process.stdout, end: false
     proc.on        'exit', (status) ->
         process.exit(1) if status != 0
         callback() if typeof callback is 'function'
@@ -55,8 +55,8 @@ task 'build:source', 'build from source', (o, callback) ->
         callback
 
 task 'build:parser', 'build the parser', 'build:source', (o)->
-    require 'jison'
     parser = require("#{o.build}/grammar").parser
+    parser.hasErrorRecovery = true # workaround preserving error recovery code
     code = """
     var Parser = function Parser(){};
     Parser.prototype = #{parser.generateModule_()};
