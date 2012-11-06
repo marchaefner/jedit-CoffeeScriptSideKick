@@ -59,9 +59,8 @@ changes in `ivy.xml`:
     @@ -3,4 +3,4 @@
          <dependencies>
     -        <dependency org="org.mozilla" name="rhino" rev="1.7R3"/>
-    -	<dependency org="junit" name="junit" rev="4.8.2"/>
-    +        <dependency org="org.mozilla" name="rhino" rev="1.7R4" conf="default->master" />
-    +        <dependency org="junit" name="junit" rev="4.8.2" conf="default->master" />
+    +        <dependency org="org.mozilla" name="rhino" rev="1.7R4"/>
+             <dependency org="junit" name="junit" rev="4.8.2"/>
          </dependencies>
 
 changes in `RhinoPlugin.props`:

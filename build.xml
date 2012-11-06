@@ -1,6 +1,6 @@
 <project name="CoffeeScriptSideKick" default="build">
     <description>
-        Ant build file the CoffeeScriptSidekick plugin for jEdit.
+        Ant build file the CoffeeScriptSideKick plugin for jEdit.
     </description>
     <property file="../build.properties" />
     <property file="build.properties" />
@@ -14,7 +14,7 @@
         accordingly.-->
     <property name="always.compile.coffeescript" value="false" />
     <property name="node.executable" value="node" />
-    <property name="coffescript.dir" location="coffee-script" />
+    <property name="coffeescript.dir" location="coffee-script" />
 
     <import file="${build.support}/plugin-build.xml" />
 
@@ -59,12 +59,12 @@
     <target name="compile.coffeescript" depends="check-javascript-file" if="do.compile.coffeescript">
         <mkdir dir="${build.dir}/coffee-script" />
         <exec executable="${node.executable}" failonerror="true">
-            <arg value="${coffescript.dir}/bin/cake" />
+            <arg value="${coffeescript.dir}/bin/cake" />
             <arg line="--source ${src.dir}" />
             <arg line="--build ${build.dir}/coffee-script" />
             <arg line="--dist ./CoffeeScriptParser.js" />
             <arg line="--node ${node.executable}" />
-            <arg line="--coffeescript ${coffescript.dir}" />
+            <arg line="--coffeescript ${coffeescript.dir}" />
             <arg value="build" />
         </exec>
     </target>
