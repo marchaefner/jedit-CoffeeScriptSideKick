@@ -1,4 +1,4 @@
-# This is a modified copy from the CoffeeScript 1.3.3 source.
+# This is a modified copy from the CoffeeScript 1.4.0 source.
 #   * Actions are extended to add the `first_line` and `last_line` properties
 #     to AST nodes.
 #   * The `error` symbol has been added as an alternative to the production of

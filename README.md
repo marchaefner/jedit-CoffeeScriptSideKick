@@ -7,7 +7,7 @@ The SideKick tree represents (most) classes and functions according to their
 position in the source code. In Cakefiles tasks will also be added to the
 tree. Errors encountered while parsing will be forwarded to ErrorList.
 
-This plugin uses a modified version of CoffeeScript 1.3.3 which runs inside
+This plugin uses a modified version of CoffeeScript 1.4.0 which runs inside
 the Rhino JavaScript engine.
 
 ## Installation
@@ -35,7 +35,7 @@ included.
 
 ### git-submodule `coffee-script`
 
-CoffeeScript 1.3.3 is included as a git submodule. Either clone this project
+CoffeeScript 1.4.0 is included as a git submodule. Either clone this project
 recursivly:
 
     git clone --recursive git://github.com/marchaefner/jedit-CoffeeScriptSideKick.git
