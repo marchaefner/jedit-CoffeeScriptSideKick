@@ -1,6 +1,6 @@
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.activate=defer
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.name=CoffeeScriptSideKick
-plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.version=0.8
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.version=0.8.1
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.author=Marc H&auml;fner
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.docs=index.html
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.description=CoffeeScript parser for SideKick
