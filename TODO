@@ -21,7 +21,6 @@ Rewrite AST walker / add a "Scope Mode"
 
 Tricky stuff
 ------------
-  * Ponder speeding up the lexer.
   * docco support: recognize markdown headers in comments (which are discarded
     by the lexer)
   * class' `extends` values (which are expressions).

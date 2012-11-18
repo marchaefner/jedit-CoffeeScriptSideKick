@@ -29,7 +29,7 @@
   </para>
   <para>
     Contains the CoffeeScript 1.4.0 parser which has been modified to record
-    line numbers and report and skip errornous constructs. The resulting AST
+    line numbers and report and skip erroneous constructs. The resulting AST
     is used to construct the SideKick tree. Parser errors are forwarded to the
     ErrorList.
   </para>
@@ -122,10 +122,8 @@
     <itemizedlist>
       <listitem>
         <para>
-          Parsing is quite slow since the Lexer is based upon regular
-          expressions which do not (yet?) have a adequatly fast implementation
-          in Rhino.
-          It is therefore not advisable to let SideKick parse on keystrokes.
+          Parsing is quite slow as it happens in Rhino. It is therefore not
+          advisable to let SideKick parse on keystrokes.
         </para>
       </listitem>
       <listitem>

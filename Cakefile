@@ -38,20 +38,20 @@ option_defaults =
 run = (command, args, callback) ->
     proc =         spawn command, args
     proc.stdout.pipe process.stdout, end: false
+    proc.stderr.pipe process.stderr, end: false
     proc.on        'exit', (status) ->
         process.exit(1) if status != 0
         callback() if typeof callback is 'function'
 
-# CoffeeScript source files that will be compiled and merged into dist file
-LIBS = ['helpers', 'rewriter', 'lexer', 'scope', 'nodes']
-
 ## Tasks
 task 'build:source', 'build from source', (o, callback) ->
-    files = LIBS.map (name) -> "#{o.coffeescript}/src/#{name}.coffee"
-    files.push  "#{o.source}/grammar.coffee",
-                "#{o.source}/CoffeeScriptParser.coffee"
     run o.node,
-        ["#{o.coffeescript}/bin/coffee", '-c', '-o', o.build].concat(files),
+        ["#{o.coffeescript}/bin/coffee", '-c', '-o', o.build].concat(
+            ['lexer', 'grammar', 'CoffeeScriptParser'].map( (file) ->
+                "#{o.source}/#{file}.coffee")).concat(
+            ['helpers', 'rewriter', 'scope', 'nodes'].map( (file) ->
+                "#{o.coffeescript}/src/#{file}.coffee")
+        ),
         callback
 
 task 'build:parser', 'build the parser', 'build:source', (o)->
@@ -65,7 +65,8 @@ task 'build:parser', 'build the parser', 'build:source', (o)->
     fs.writeFileSync "#{o.build}/parser.js", code
 
 task 'merge', 'merge compiled source to CoffeeScriptParser.js', (o)->
-    code = for name in LIBS.concat('parser')
+    code = for name in ['helpers', 'rewriter', 'lexer', 'scope', 'nodes',
+                        'parser']
         """
         require['./#{name}'] = new function() {
             var exports = this;
