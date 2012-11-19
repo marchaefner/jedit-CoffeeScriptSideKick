@@ -6,10 +6,7 @@ import sidekick.SideKickParser;
 import sidekick.SideKickParsedData;
 import errorlist.DefaultErrorSource;
 
-/** Parser service. Starts a new ParserRunner */
 public class CoffeeScriptSideKickParser extends SideKickParser {
-    private ICoffeeScriptParser parser = new CoffeeScriptParser();
-
     public
     CoffeeScriptSideKickParser() {
         super("coffeescript");
@@ -17,6 +14,11 @@ public class CoffeeScriptSideKickParser extends SideKickParser {
 
     public SideKickParsedData
     parse(Buffer buffer, DefaultErrorSource errorSource) {
-        return new ParserRunner().run(parser, buffer, errorSource);
+        ICoffeeScriptParser parser = new CoffeeScriptParser();
+        SideKickParsedData parsedData = new SideKickParsedData(buffer.getName());
+        parser.parse(   buffer.getText(),
+                        parsedData.root,
+                        new ParserConfig(buffer, errorSource));
+        return parsedData;
     }
 }
