@@ -18,6 +18,9 @@ plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.5=plugin rhino.Rh
 sidekick.parser.coffeescript.label=coffeescript
 mode.coffeescript.sidekick.parser=coffeescript
 
+# action labels
+compile.label=Compile selection
+
 # option pane
 options.coffeescript.label=CoffeeScript
 options.coffeescript.code=new sidekick.coffeescript.OptionPane();

@@ -2,9 +2,8 @@ Nodes = require './nodes'
 {last} = require './helpers'
 {INVERSES} = require './rewriter'
 
-obj_with_prototype = (proto) ->
-    ctor = ->
-    ctor.prototype = proto
+Object.create ?= (proto) ->
+    (ctor = ->).prototype = proto
     new ctor
 
 # ## Lexer
@@ -35,9 +34,12 @@ class Lexer extends require('./lexer').Lexer
 class Parser extends require('./parser').Parser
     constructor: (report_error) ->
         # Override `parseError` to report
-        @parseError = (message, info) -> report_error info.line, message
+        @failed = false
+        @parseError = (message, info) ->
+            @failed = true
+            report_error info.line, message
         # set .yy and wrap nodes that might throw exceptions on instantiation
-        @yy = obj_with_prototype Nodes
+        @yy = Object.create Nodes
         for node_name in ['Assign', 'Param', 'For']
             @yy[node_name] = class Wrapper extends Nodes[node_name]
                 constructor: () ->
@@ -45,6 +47,9 @@ class Parser extends require('./parser').Parser
                         super
                     catch message
                         report_error @first_line, message
+                name = node_name
+                toString: (idt = '') ->
+                    super idt, name
 
     # Add a `.yylloc` to lexer
     lexer:
@@ -152,7 +157,7 @@ class CoffeeScriptParser
         report_error =  if not showErrors
                             ->
                         else if config.reportError?
-                            (line, msg) -> config.reportError line, msg
+                            (line, msg) -> config.reportError line ? null, msg
                         else
                             (line, msg) -> console.error (line ? ''), msg
 
@@ -161,6 +166,20 @@ class CoffeeScriptParser
         @parser = new Parser(report_error)
 
     #### Interface
+    compile: (source) ->
+        try
+            ast = @parser.parse(
+                    @lexer.tokenize String source, {line: @first_line})
+        catch err
+            @log_error "Parser error: #{err}"
+            return null
+        if not @parser.failed
+            try
+                return ast.compile(bare: true)
+            catch err
+                @log_error "Compiler error: #{err}"
+        return null
+
     nodes: (source) ->
         @parser.parse(
             @lexer.tokenize String source, {line: @first_line}
@@ -366,6 +385,9 @@ exports.CoffeeScriptParser = CoffeeScriptParser
 
 exports.nodes = (source, config) ->
     return (new CoffeeScriptParser(config)).nodes(source)
+
+exports.compile = (source, config) ->
+    return (new CoffeeScriptParser(config)).compile(source)
 
 exports.parse = (source, root, config) ->
     return (new CoffeeScriptParser(config)).parse(source, root)
