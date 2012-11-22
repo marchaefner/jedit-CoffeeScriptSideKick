@@ -1,19 +1,14 @@
 # CoffeeScript SideKick Plugin for jEdit
 
-This [jEdit][] plugin provides a simple SideKick parser for the
-[CoffeeScript][] language.
+This [jEdit][] plugin provides a SideKick parser for the [CoffeeScript][]
+language.
 
 The SideKick tree represents (most) classes and functions according to their
-position in the source code. In Cakefiles tasks will also be added to the
+position in the source code. In Cakefiles, tasks will also be added to the
 tree. Errors encountered while parsing will be forwarded to ErrorList.
 
 This plugin uses a modified version of CoffeeScript 1.4.0 which runs inside
 the Rhino JavaScript engine.
-
-## Installation
-
-Copy `CoffeeScriptParser.jar` from the `dist` folder into your jEdit plugin
-folder (e.g. `~/.jedit/jars`) and then activate it in the Plugin Manager.
 
 ## Building
 
@@ -30,7 +25,7 @@ included.
 
   * jEdit plugin building environment
   * jEdit plugins: ErrorList, SideKick and Rhino (version 1.7R4, see below)
-  * [Node.js][] - required to execute `Cakefile`
+  * [Node.js][] - required to execute the `Cakefile`
   * [Jison][] - JavaScript Parser Generator (installable with npm)
 
 ### git-submodule `coffee-script`
@@ -47,8 +42,8 @@ or update the submodule after cloning:
 ### Updating the Rhino Plugin
 
 This plugin builds (and therefore runs) only with Rhino version 1.7R4.
-At the time (2012/08) the official Rhino plugin ships with version 1.7R3_1 and
-needs to be updated like so:
+At the current time (2012/11) the official Rhino plugin ships with version
+1.7R3_1 and needs to be updated like so:
 
   1. get plugin source
   2. patch `ivy.xml` and `RhinoPlugin.props` (as shown below)
