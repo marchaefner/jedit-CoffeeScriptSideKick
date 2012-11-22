@@ -1,4 +1,4 @@
-<project name="CoffeeScriptSideKick" default="build">
+<project name="CoffeeScriptSideKick" default="dist.nojavadoc">
     <description>
         Ant build file the CoffeeScriptSideKick plugin for jEdit.
     </description>
@@ -7,14 +7,13 @@
 
     <property name="user-doc.xml" location="users-guide.xml" />
     <property name="src.dir" location="src" />
-    <property name="build.dir" location="build" />
+    <property name="build.dir" location="build" /> <!-- define as location -->
     <property name="javadoc.packagenames" value="sidekick.coffeescript" />
 
-    <!--If you want to compile the CoffeeScript source too, change these
-        accordingly.-->
-    <property name="always.compile.coffeescript" value="false" />
+    <!-- Properties for building from the CoffeeScript source. -->
     <property name="node.executable" value="node" />
     <property name="coffeescript.dir" location="coffee-script" />
+    <property name="javascript.file" location="./CoffeeScriptParser.js" />
 
     <import file="${build.support}/plugin-build.xml" />
 
@@ -24,6 +23,7 @@
         <pathelement location="${jedit.plugins.dir}/rhino.jar" />
     </path>
 
+    <!-- Redefine to exclude superfluous files from the CoffeeScript repo. -->
     <selector id="extraFiles">
         <and>
             <or>
@@ -48,35 +48,62 @@
     </target>
 
     <target name="check-javascript-file">
-        <condition property="do.compile.coffeescript">
-            <or>
-                <istrue value="${always.compile.coffeescript}" />
-                <not><available file="./CoffeeScriptParser.js" /></not>
-            </or>
+        <!-- Check whether any CoffeeScript source files have been altered.
+              * Compute checksum over all *.coffee files in src.dir and save
+                in property "coffeescript.checksum".
+              * Read the checksum of the previous compilation from the last
+                line of the javascript.file.
+              * Set "should.compile.coffeescript" if the checksums differ.
+        -->
+        <checksum totalproperty="coffeescript.checksum"
+                    todir="${build.dir}/checksums" forceoverwrite="yes">
+            <files includes="${src.dir}/*.coffee" />
+        </checksum>
+        <loadfile property="coffeescript.checksum.old"
+                    srcfile="${javascript.file}" failonerror="false">
+            <filterchain>
+                <tailfilter lines="1" />
+                <deletecharacters chars="/" />
+            </filterchain>
+        </loadfile>
+        <condition property="should.compile.coffeescript">
+            <not>
+                <equals arg1="${coffeescript.checksum}"
+                        arg2="${coffeescript.checksum.old}"
+                        trim="true" />
+            </not>
         </condition>
     </target>
 
-    <target name="compile.coffeescript" depends="check-javascript-file" if="do.compile.coffeescript">
+    <target name="compile.coffeescript"
+            depends="check-javascript-file" if="should.compile.coffeescript">
+        <!-- Explicit mkdir to prevent the infamous "-p" dir in Windows. -->
         <mkdir dir="${build.dir}/coffee-script" />
+        <!-- Execute "cake build" to build the javascript.file. -->
         <exec executable="${node.executable}" failonerror="true">
             <arg value="${coffeescript.dir}/bin/cake" />
             <arg line="--source ${src.dir}" />
             <arg line="--build ${build.dir}/coffee-script" />
-            <arg line="--dist ./CoffeeScriptParser.js" />
+            <arg line="--dist ${javascript.file}" />
             <arg line="--node ${node.executable}" />
             <arg line="--coffeescript ${coffeescript.dir}" />
             <arg value="build" />
         </exec>
+        <!-- Write checksum of CoffeeScript source files to the last line. -->
+        <echo file="${javascript.file}" append="true"
+                message="${line.separator}// ${coffeescript.checksum}" />
     </target>
 
     <target name="compile.javascript">
+        <!-- First compile interface file (utilizing "compile" task)-->
         <selector id="parserInterfaceFile">
             <filename name="**/ICoffeeScriptParser.java" />
         </selector>
         <antcall target="compile">
             <reference torefid="compileFiles" refid="parserInterfaceFile" />
         </antcall>
-        <echo>compiling javascript...</echo>
+
+        <!-- Compile javascript.file with Rhinos JavaScript compiler. -->
         <java fork="yes"
               classname="org.mozilla.javascript.tools.jsc.Main"
               failonerror="true">
@@ -85,11 +112,12 @@
                 <path refid="project.class.path" />
                 <pathelement path="${build.classes}" />
             </classpath>
-            <arg line="-opt 1"/>
+            <arg line="-opt 1" />
+            <arg line="-nosource" />
             <arg line="-implements sidekick.coffeescript.ICoffeeScriptParser" />
             <arg line="-package sidekick.coffeescript" />
-            <arg line="-d ${build.classes}"/>
-            <arg value="./CoffeeScriptParser.js" />
+            <arg line="-d ${build.classes}" />
+            <arg value="${javascript.file}" />
         </java>
     </target>
 </project>
