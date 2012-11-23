@@ -21,6 +21,7 @@
         <pathelement location="${jedit.plugins.dir}/SideKick.jar" />
         <pathelement location="${jedit.plugins.dir}/ErrorList.jar" />
         <pathelement location="${jedit.plugins.dir}/rhino.jar" />
+        <pathelement location="${jedit.plugins.dir}/eclipseicons.jar" />
     </path>
 
     <!-- Redefine to exclude superfluous files from the CoffeeScript repo. -->

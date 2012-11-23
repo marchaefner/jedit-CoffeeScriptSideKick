@@ -8,8 +8,9 @@ import org.gjt.sp.jedit.Buffer;
 import errorlist.DefaultErrorSource;
 import errorlist.ErrorSource;
 
-/** Configuration object for the parser, providing options and callbacks for
-    TreeNode construction, error reporting and logging.
+/**
+ * Configuration object for the parser, providing options and callbacks for
+ * TreeNode construction, error reporting and logging.
  */
 public class ParserConfig {
     public boolean showErrors;
@@ -48,13 +49,9 @@ public class ParserConfig {
     }
 
     public DefaultMutableTreeNode
-    makeTreeNode(String name, String type, int firstLine, int lastLine) {
-        if (type.equals("hidden")) {
-            name = "-" + name;
-        } else if (type.equals("property")) {
-            name = " " + name;
-        }
-        CoffeeAsset asset = new CoffeeAsset(name);
+    makeTreeNode(String name, String type, String qualifier,
+                    int firstLine, int lastLine) {
+        CoffeeAsset asset = new CoffeeAsset(name, type, qualifier);
         asset.setStart(
             this.buffer.createPosition(
                 this.buffer.getLineStartOffset(firstLine)));

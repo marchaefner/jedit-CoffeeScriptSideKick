@@ -12,7 +12,8 @@ plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.0=jdk 1.6
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.1=jedit 05.00.01.00
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.2=plugin errorlist.ErrorListPlugin 2.0
 plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.3=plugin sidekick.SideKickPlugin 1.4
-plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.5=plugin rhino.RhinoPlugin 1.7R4
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.4=plugin rhino.RhinoPlugin 1.7R4
+plugin.sidekick.coffeescript.CoffeeScriptSideKickPlugin.depend.5=plugin eclipseicons.EclipseIconsPlugin 1.0
 
 # registration with SideKick as a mode parser
 sidekick.parser.coffeescript.label=coffeescript
@@ -28,4 +29,10 @@ options.coffeescript.displayCodeParameters.label=Display function parameters
 options.coffeescript.displayCodeParameters=false
 options.coffeescript.showErrors.label=Show parser errors in ErrorList
 options.coffeescript.showErrors=true
+options.coffeescript.showIcons.label=Show icons
+options.coffeescript.showIcons=true
+options.coffeescript.showPrefix.label=Show prefix for hidden and class members
+options.coffeescript.showPrefix=false
+options.coffeescript.showType.label=<html>Display node type (<code>&lt;class&gt;</code> or <code>&lt;task&gt;</code>)
+options.coffeescript.showType=false
 

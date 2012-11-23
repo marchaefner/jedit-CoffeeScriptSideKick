@@ -35,6 +35,47 @@
   </para>
 </chapter>
 
+<chapter id="options"><title>Options</title>
+  <glosslist>
+    <glossentry>
+      <glossterm>Show parser errors in ErrorList</glossterm>
+      <glossdef><para>
+        Syntax errors encountered while parsing will be forwarded to the
+        ErrorList.</para></glossdef>
+    </glossentry>
+    <glossentry>
+      <glossterm>Display function parameters</glossterm>
+      <glossdef><para>
+        Display a simplified version of the parameter definition, without
+        default values.
+        </para><para>
+        Destructuring parameters are partially supported: In objects only
+        the lookup keys are displayed. If a key in an array is to complex it
+        may be replaced by an underline.</para></glossdef>
+    </glossentry>
+    <glossentry>
+      <glossterm>Show icons</glossterm>
+      <glossdef><para>
+        Show icons in the SideKick tree, mimicking Eclipse Java style.
+      </para></glossdef>
+    </glossentry>
+    <glossentry>
+      <glossterm>Show prefix for hidden and class members</glossterm>
+      <glossdef><para>
+        Prefix hidden members with a minus (<code>-</code>) and class members
+        with an at symbol (<code>@</code>).</para><para>
+        (Hidden members are functions and subclasses in a class that are not
+        assigned as a prototype property.)</para></glossdef>
+    </glossentry>
+    <glossentry>
+      <glossterm>Display node type</glossterm>
+      <glossdef><para>
+        Append the type to classes (<code>&lt;class&gt;</code>) and tasks
+        (<code>&lt;task&gt;</code>).</para></glossdef>
+    </glossentry>
+  </glosslist>
+</chapter>
+
 <chapter id="function"><title>Functional scope</title>
   <para>
     Currently these constructs are recognized:
@@ -61,7 +102,7 @@
       </listitem>
       <listitem>
         <para>
-          Prototype assignments inside class declarations
+          Property assignments inside class declarations
           <programlisting>
             class C
               @static: (a, b) ->
@@ -85,36 +126,16 @@
   </para>
   <para>
     The name of the SideKick node is the first (leftmost) recognizable
-    assignment if multiple possibilities are given or the "real" class name.
-    Property assignments will result in a dotted name.
-    E.g. <code>exports['E'] = D = class</code> will show up as a single node
-    <code>exports.E class</code> while <code>exports['E'] = D = class C</code>
-    will result in a node <code>C class</code>.
+    assignment or the "real" class name. Property assignments will result in a
+    dotted name. E.g. <code>exports['E'] = D = class</code> will show up as a
+    single node <code>exports.E &lt;class&gt;</code> while
+    <code>exports['E'] = D = class C</code> will result in a node
+    <code>C &lt;class&gt;</code>.
   </para>
   <para>
     The resulting tree represents the source structure (which is not
     necessarily the functional structure).
   </para>
-</chapter>
-
-<chapter id="options"><title>Options</title>
-  <glosslist>
-    <glossentry>
-      <glossterm>Show parser errors in ErrorList</glossterm>
-      <glossdef><para>
-        Syntax errors encountered while parsing will be forwarded to the
-        ErrorList.</para></glossdef>
-    </glossentry>
-    <glossentry>
-      <glossterm>Display function parameters</glossterm>
-      <glossdef><para>
-        Display a simplified version of the parameter definition, without
-        default values.
-        Destructuring parameters are partially supported: In objects only
-        the lookup keys are displayed. If a key in an array is to complex it
-        may be replaced by an underline.</para></glossdef>
-    </glossentry>
-  </glosslist>
 </chapter>
 
 <chapter id="problems"><title>Known problems and limitations</title>

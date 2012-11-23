@@ -42,7 +42,7 @@ class Parser extends require('./parser').Parser
         @yy = Object.create Nodes
         for node_name in ['Assign', 'Param', 'For']
             @yy[node_name] = class Wrapper extends Nodes[node_name]
-                constructor: () ->
+                constructor: ->
                     try
                         super
                     catch message
@@ -64,7 +64,7 @@ class Parser extends require('./parser').Parser
         setInput: (@tokens) ->
             @pos = 0
         upcomingInput: ->
-            ""
+            ''
 
 # ## helper functions for the AST walker
 
@@ -149,8 +149,8 @@ class CoffeeScriptParser
 
         # replace overridable function
         if config.makeTreeNode?
-            @make_tree_node = (name, type, first_line, last_line) ->
-                config.makeTreeNode(name, type, first_line, last_line)
+            @make_tree_node = (args...) ->
+                config.makeTreeNode args...
         if config.logError?
             @log_error = (message...) ->
                 config.logError message.join(' ')
@@ -204,9 +204,9 @@ class CoffeeScriptParser
     log_error: (message...) ->
         console.error message...
 
-    make_tree_node: (name, type, first_line, last_line) ->
+    make_tree_node: (name, type, qualifier, first_line, last_line) ->
         child_nodes = []
-        add:    (node) -> child_nodes.push node
+        add: (node) -> child_nodes.push node
         pprint: -> @_pprint().join('')
         _pprint: (parts=[], prefix, last) ->
             if prefix?
@@ -219,12 +219,19 @@ class CoffeeScriptParser
                     prefix = prefix+' │  '
             else
                 prefix = ''
-            switch type
+            switch qualifier
+                when 'static'
+                    parts.push '@'
                 when 'hidden'
                     parts.push '-'
-                when 'property'
+                when 'property', 'constructor'
                     parts.push ' '
             parts.push name
+            switch type
+                when "class"
+                    parts.push ' class'
+                when "task"
+                    parts.push ' task'
             if first_line?
                 parts.push ' [', first_line, '..', last_line, ']'
             parts.push '\n'
@@ -253,7 +260,11 @@ class CoffeeScriptParser
                     name_from_value(node.variable)?[0] is 'task' and
                     (arg = node.args[0]) instanceof Nodes.Value and
                     name = name_from_value(arg)?[0].match(/^(['"])(.*)\1$/)?[2]
-                parent.add @make_task_node name, node.first_line, last_line
+                parent.add @make_tree_node  name,
+                                            'task',
+                                            '',
+                                            node.first_line,
+                                            last_line
                 continue
             # **assign expression**
             else if node instanceof Nodes.Assign
@@ -324,34 +335,47 @@ class CoffeeScriptParser
             if node_name
                 # Beautify name and determine the type of node.
                 name = null
-                type = ''
+                qualifier = ''
                 if node_name.length>1 and node_name[0] in ['this', parent_class]
                     if parent_class
                         if node_name.length > 2 and node_name[1] is 'prototype'
                             name = node_name.slice(2).join('.')
-                            type = 'property'
+                            qualifier = 'property'
                         else
-                            type = 'static'
-                    name ?= '@'+node_name.slice(1).join('.')
+                            name = node_name.slice(1).join('.')
+                            qualifier = 'static'
+                    else
+                        name = '@'+node_name.slice(1).join('.')
                 else
                     if in_prototype
-                        type = 'property'
+                        if node_name[0] is 'constructor'
+                            qualifier = 'constructor'
+                        else
+                            qualifier = 'property'
                     else if parent_class
-                        type = 'hidden'
+                        qualifier = 'hidden'
                     name = node_name.join('.')
                 name = name.replace('.prototype.', '::')
 
+                if node_is_class
+                    type = 'class'
+                else
+                    type = 'code'
+                    if @displayCodeParameters
+                        params = []
+                        for param in node.params
+                            params.push ', ' if params.length
+                            params.push format_param(param.name)...
+                            params.push '...' if param.splat
+                        name = "#{name}(#{params.join('')})"
+
                 # Make tree node and walk over children
-                node_factory =  if node_is_class
-                                    @make_class_node
-                                else
-                                    @make_code_node
-                tree_node = node_factory.call   this,
-                                                node,
-                                                name,
-                                                type,
-                                                node.first_line,
-                                                last_line
+                tree_node = @make_tree_node name,
+                                            type,
+                                            qualifier,
+                                            node.first_line,
+                                            last_line
+
                 @walk_ast   node.body.expressions,
                             tree_node,
                             last_line,
@@ -360,24 +384,6 @@ class CoffeeScriptParser
                 parent.add tree_node
         return
 
-    #### tree node factories
-    make_task_node: (name, first_line, last_line) ->
-        name = "#{name} task"
-        @make_tree_node(name, '', first_line, last_line)
-
-    make_class_node: (node, name, type, first_line, last_line) ->
-        name = "#{name} class"
-        @make_tree_node(name, type, first_line, last_line)
-
-    make_code_node: (node, name, type, first_line, last_line) ->
-        if @displayCodeParameters
-            params = []
-            for param in node.params
-                params.push ', ' if params.length
-                params.push format_param(param.name)...
-                params.push '...' if param.splat
-            name = "#{name}(#{params.join('')})"
-        @make_tree_node(name, type, first_line, last_line)
 
 # ## Interface
 

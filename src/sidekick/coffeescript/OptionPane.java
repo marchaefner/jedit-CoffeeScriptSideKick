@@ -1,6 +1,9 @@
 package sidekick.coffeescript;
 
 import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.Box;
+import javax.swing.BorderFactory;
 import org.gjt.sp.jedit.AbstractOptionPane;
 
 public class OptionPane extends AbstractOptionPane {
@@ -19,16 +22,29 @@ public class OptionPane extends AbstractOptionPane {
         Options.setBool(name, checkBox.getModel().isSelected());
     }
 
-    private JCheckBox displayCodeParameters;
     private JCheckBox showErrors;
+    private JCheckBox displayCodeParameters;
+    private JCheckBox showIcons;
+    private JCheckBox showPrefix;
+    private JCheckBox showType;
 
     protected void _init() {
-        displayCodeParameters = addCheckBox("displayCodeParameters");
+        setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
         showErrors = addCheckBox("showErrors");
+        addComponent(Box.createVerticalStrut(12));
+        addComponent(new JLabel("<html><b>Display Options"));
+        addComponent(Box.createVerticalStrut(4));
+        displayCodeParameters = addCheckBox("displayCodeParameters");
+        showIcons = addCheckBox("showIcons");
+        showPrefix = addCheckBox("showPrefix");
+        showType = addCheckBox("showType");
     }
 
     protected void _save() {
-        saveCheckBox("displayCodeParameters", displayCodeParameters);
         saveCheckBox("showErrors", showErrors);
+        saveCheckBox("displayCodeParameters", displayCodeParameters);
+        saveCheckBox("showIcons", showIcons);
+        saveCheckBox("showPrefix", showPrefix);
+        saveCheckBox("showType", showType);
     }
 }
