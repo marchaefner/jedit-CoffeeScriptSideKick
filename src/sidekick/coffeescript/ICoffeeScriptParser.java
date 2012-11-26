@@ -2,8 +2,10 @@ package sidekick.coffeescript;
 
 import java.util.List;
 
-/** Interface for CoffeeScriptParser.coffee/.js/.class */
-public interface ICoffeeScriptParser {
-    public void parse(String source, Object rootNode, Object config);
-    public String compile(String source, Object config);
+/**
+ * Interface for CoffeeScriptParser.coffee/.js/.class
+ */
+interface ICoffeeScriptParser {
+    void parse(String source, Object rootNode, Object config);
+    String compile(String source, Object config);
 }
