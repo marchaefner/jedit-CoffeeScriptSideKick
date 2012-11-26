@@ -26,10 +26,10 @@ public class CoffeeScriptSideKickPlugin extends EditPlugin {
 
     public static void compile(View view) {
         StringList results = new StringList();
-        ICoffeeScriptParser parser = new CoffeeScriptParser();
-        ParserConfig config = new ParserConfig(view.getBuffer(), errorSource);
         TextArea textArea = view.getTextArea();
         startErrorSource();
+        ParserConfig config = new ParserConfig(view.getBuffer(), errorSource);
+        ICoffeeScriptParser parser = new CoffeeScriptParser();
         if (textArea.getSelectionCount() == 0) {
             results.add(parser.compile(textArea.getText(), config));
         } else {
