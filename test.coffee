@@ -148,5 +148,35 @@ test 'unclosed parentheses in block'
     [2, /\[/]
     [2, /{/]
 
+test 'code parameters'
+    config:
+        displayCodeParameters: true
+    code: """
+        f = (a, b, c) ->
+        g = (a='default', b=a) ->
+        h = ([a, b], {c:d, e}) ->
+        i = ([[a, [b]]], {c:[d], e:{f}}) ->"""
+    tree: """
+            <root>
+             ├─ f(a, b, c) [0..0]
+             ├─ g(a, b) [1..1]
+             ├─ h([a, b], {c, e}) [2..2]
+             └─ i([[a, [b]]], {c, e}) [3..3]"""
+
+test 'illegal code parameters'
+    config:
+        displayCodeParameters: true
+    code: """
+        f = (eval, arguments=-1) ->"""
+    tree: """
+            <root>
+             └─ f(eval, arguments) [0..0]"""
+    [0, /eval/]
+    [0, /arguments/]
+    # NOTE
+    # Illegal parameter names in destructuring assignments are processed at
+    # compile time and will not produce errors while parsing. Hence no test as
+    #       g = ([eval], {arguments}) ->
+
 if any_test_failed
     process.stdout.on 'drain', -> process.exit(1)
