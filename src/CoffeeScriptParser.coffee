@@ -6,6 +6,12 @@ Object.create ?= (proto) ->
     (ctor = ->).prototype = proto
     new ctor
 
+# Unfified output to stderr for node.js and Rhino.
+print_error =   if java?
+                    (args...) -> java.lang.System.err.println args.join(' ')
+                else
+                    (args...) -> console.error args...
+
 # ## Lexer
 class Lexer extends require('./lexer').Lexer
     constructor: (report_error) ->
@@ -33,23 +39,21 @@ class Lexer extends require('./lexer').Lexer
 # ## Parser
 class Parser extends require('./parser').Parser
     constructor: (report_error) ->
-        # Override `parseError` to report
-        @failed = false
+        # Override to report and mark this parser failed.
         @parseError = (message, info) ->
             @failed = true
-            report_error info.line, message
-        # set .yy and wrap nodes that might throw exceptions on instantiation
+            # Remove 'error on line' as it is unneeded and incorrect.
+            report_error info.line, message.replace(/.*on line \d.*:/, '')
+
+        # Set .yy and wrap nodes so errors will be reported.
         @yy = Object.create Nodes
-        for node_name in ['Assign', 'Param', 'For']
-            @yy[node_name] = class Wrapper extends Nodes[node_name]
-                constructor: ->
-                    try
-                        super
-                    catch message
-                        report_error @first_line, message
-                name = node_name
-                toString: (idt = '') ->
-                    super idt, name
+        for name, Node of Nodes when Node.prototype instanceof Nodes.Base
+            @yy[name] = guard_node(Node, name, this, report_error)
+
+    # Reset failed flag before parsing.
+    parse: ->
+        @failed = false
+        return super
 
     # Add a `.yylloc` to lexer
     lexer:
@@ -65,6 +69,43 @@ class Parser extends require('./parser').Parser
             @pos = 0
         upcomingInput: ->
             ''
+
+# Wrap a node (see grammar.coffee) overriding methods that might throw Errors.
+guard_node = (Node, node_name, parser, report_error) ->
+    guarded_compile_method = (method) ->
+        # Catch and report error, then abort compilation.
+        ->
+            try
+                return method.apply(this, arguments)
+            catch error
+                unless error instanceof AbortCompilation
+                    report_error @first_line, error
+                    throw new AbortCompilation
+                throw error
+
+    class GuardedNode extends Node
+        # Catch instantiation error and report, then continue parsing.
+        constructor: ->
+            try
+                return super
+            catch error
+                parser.failed = true
+                # this node does not yet have a @first_line, therefore we use
+                # yylineno from the parser/lexer directly.
+                report_error parser.lexer.yylineno, error
+
+        # Override all compile methods.
+        for own name, property of Node::
+            if /^compile/.test name and typeof property is 'function'
+                @::[name] = guarded_compile_method(property)
+
+        # Override to produce nicer debug output.
+        toString: (idt = '', name = node_name) ->
+            super idt, name
+
+# Error indicating that error reporting already happened.
+class AbortCompilation extends Error
+
 
 # ## helper functions for the AST walker
 
@@ -140,105 +181,106 @@ format_param = (node, parts=[], in_obj=false) ->
 
 # ## Parser and tree builder
 class CoffeeScriptParser
-    constructor: (config={}) ->
-        # read config values
-        @first_line = Number(config.line or 0)
-        @displayCodeParameters = config.displayCodeParameters ? false
-        @isCakefile = config.isCakefile ? false
-        showErrors = config.showErrors ? true
+    constructor: (@config={}) ->
+        # set default config values
+        @config.showErrors ?= true
+        @config.displayCodeParameters ?= false
+        @config.isCakefile ?= false
+        @config.line = Number(@config.line or 0)
 
-        # replace overridable function
-        if config.makeTreeNode?
-            @make_tree_node = (args...) ->
-                config.makeTreeNode args...
-        if config.logError?
-            @log_error = (message...) ->
-                config.logError message.join(' ')
-        report_error =  if not showErrors
-                            ->
-                        else if config.reportError?
-                            (line, msg) -> config.reportError line ? null, msg
-                        else
-                            (line, msg) -> console.error (line ? ''), msg
-
-        # instatiate lexer and parser
-        @lexer = new Lexer(report_error)
-        @parser = new Parser(report_error)
+        # instantiate lexer and parser
+        @lexer = new Lexer(@report_error)
+        @parser = new Parser(@report_error)
 
     #### Interface
-    compile: (source) ->
+    nodes: (source) ->
+        # make sure it's a javascript string
+        source = String source
+        # workaround for coffeescript bug
+        @config.line -= 1 if /^[^\n\S]+/.test source
+
         try
-            ast = @parser.parse(
-                    @lexer.tokenize String source, {line: @first_line})
-        catch err
-            @log_error "Parser error: #{err}"
-            return null
-        if not @parser.failed
+            return @parser.parse @lexer.tokenize source
+        catch error
+            @log_error "Parser error: #{error}"
+        null
+
+    compile: (source) ->
+        ast = @nodes(source)
+        if ast and not @parser.failed
             try
                 return ast.compile(bare: true)
-            catch err
-                @log_error "Compiler error: #{err}"
-        return null
-
-    nodes: (source) ->
-        @parser.parse(
-            @lexer.tokenize String source, {line: @first_line}
-        ).expressions
+            catch error
+                unless err instanceof AbortCompilation
+                    @log_error "Compiler error: #{error}"
+        null
 
     parse: (source, root='<file>') ->
         if typeof root is 'string'
             root = @make_tree_node(root)
-        try
-            nodes = @nodes(source)
-        catch err
-            @log_error "Parser error: #{err}"
-            return root
-        try
-            if nodes.length
+
+        nodes = @nodes(source)?.expressions
+        if nodes? and nodes.length
+            try
                 @walk_ast(nodes, root, nodes[nodes.length-1].last_line)
-        catch err
-            @log_error "Treemaking error: #{err}"
+            catch err
+                @log_error "Treemaking error: #{err}"
         return root
 
     #### overrideable functions
+    report_error: (line, error) =>
+        if @config.showErrors
+            error = error.message if error instanceof Error
+            line += @config.line if line?
+            if @config.reportError?
+                @config.reportError line ? null, error
+            else
+                print_error "#{line ? '?'}: #{error}"
+
     log_error: (message...) ->
-        console.error message...
+        if @config.logError?
+            @config.logError message.join(' ')
+        else
+            print_error message...
 
     make_tree_node: (name, type, qualifier, first_line, last_line) ->
-        child_nodes = []
-        add: (node) -> child_nodes.push node
-        pprint: -> @_pprint().join('')
-        _pprint: (parts=[], prefix, last) ->
-            if prefix?
-                parts.push prefix
-                if last
-                    parts.push ' └─ '
-                    prefix = prefix+'    '
+        if @config.makeTreeNode?
+            @config.makeTreeNode.apply(@config, arguments)
+        else
+            child_nodes = []
+            add: (node) -> child_nodes.push node
+            pprint: -> @_pprint().join('')
+            _pprint: (parts=[], prefix, last) ->
+                if prefix?
+                    parts.push prefix
+                    if last
+                        parts.push ' └─ '
+                        prefix = prefix+'    '
+                    else
+                        parts.push ' ├─ '
+                        prefix = prefix+' │  '
                 else
-                    parts.push ' ├─ '
-                    prefix = prefix+' │  '
-            else
-                prefix = ''
-            switch qualifier
-                when 'static'
-                    parts.push '@'
-                when 'hidden'
-                    parts.push '-'
-                when 'property', 'constructor'
-                    parts.push ' '
-            parts.push name
-            switch type
-                when "class"
-                    parts.push ' class'
-                when "task"
-                    parts.push ' task'
-            if first_line?
-                parts.push ' [', first_line, '..', last_line, ']'
-            parts.push '\n'
-            last = child_nodes.length-1
-            for child, i in child_nodes
-                child._pprint(parts, prefix, i is last)
-            return parts
+                    prefix = ''
+                switch qualifier
+                    when 'static'
+                        parts.push '@'
+                    when 'hidden'
+                        parts.push '-'
+                    when 'property', 'constructor'
+                        parts.push ' '
+                parts.push name
+                switch type
+                    when "class"
+                        parts.push ' class'
+                    when "task"
+                        parts.push ' task'
+                if first_line?
+                    parts.push ' [', first_line, '..', last_line, ']'
+                parts.push '\n'
+                last = child_nodes.length-1
+                for child, i in child_nodes
+                    child._pprint(parts, prefix, i is last)
+                return parts
 
     #### AST walker
     walk_ast: (nodes, parent, parent_last_line, parent_class, in_prototype) ->
@@ -255,7 +297,7 @@ class CoffeeScriptParser
             node_name = null
 
             # **task** definitions in Cakefiles
-            if @isCakefile and
+            if @config.isCakefile and
                     node instanceof Nodes.Call and
                     name_from_value(node.variable)?[0] is 'task' and
                     (arg = node.args[0]) instanceof Nodes.Value and
@@ -361,7 +403,7 @@ class CoffeeScriptParser
                     type = 'class'
                 else
                     type = 'code'
-                    if @displayCodeParameters
+                    if @config.displayCodeParameters
                         params = []
                         for param in node.params
                             params.push ', ' if params.length
