@@ -20,7 +20,7 @@ sidekick.parser.coffeescript.label=coffeescript
 mode.coffeescript.sidekick.parser=coffeescript
 
 # action labels
-compile.label=Compile selection
+coffeescript-compile-selection.label=Compile selection with CoffeeScript
 
 # option pane
 options.coffeescript.label=CoffeeScript

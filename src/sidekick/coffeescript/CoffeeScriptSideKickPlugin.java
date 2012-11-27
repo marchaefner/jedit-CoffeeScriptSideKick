@@ -1,5 +1,8 @@
 package sidekick.coffeescript;
 
+import java.util.Map;
+import java.util.HashMap;
+
 import org.gjt.sp.util.StringList;
 import org.gjt.sp.jedit.jEdit;
 import org.gjt.sp.jedit.Buffer;
@@ -14,22 +17,49 @@ import errorlist.DefaultErrorSource;
 public class CoffeeScriptSideKickPlugin extends EditPlugin {
     public static final String NAME = "sidekick.coffeescript";
     public static final String OPTION_PREFIX = "options.coffeescript.";
-    private static DefaultErrorSource errorSource;
 
-    private static void startErrorSource() {
-        if (errorSource == null) {
-            errorSource = new DefaultErrorSource("CoffeeScript");
+    private static final Map<View, DefaultErrorSource>
+    errorSources = new HashMap<View, DefaultErrorSource>();
+
+    private static DefaultErrorSource getErrorSource(View view) {
+        if (errorSources.containsKey(view)) {
+            return errorSources.get(view);
+        } else {
+            DefaultErrorSource errorSource =
+                    new DefaultErrorSource("CoffeeScript", view);
             ErrorSource.registerErrorSource(errorSource);
+            errorSources.put(view, errorSource);
+            return errorSource;
         }
-        errorSource.clear();
     }
 
-    public static void compile(View view) {
+    @Override
+    public void stop() {
+        for (ErrorSource errorSource : errorSources.values()) {
+            ErrorSource.unregisterErrorSource(errorSource);
+        }
+        errorSources.clear();
+    }
+
+    /**
+     * Compiles text of selection(s) into a new buffer.
+     *
+     * The text of each selection or or the whole buffer (if no selection
+     * exists) is compiled with CoffeeScript. If successful the result will be
+     * opened in a new buffer. Errors will be forwarded to ErrorList.
+     *
+     * @param   view    the current View
+     */
+    public static void compileSelection(View view) {
         StringList results = new StringList();
-        TextArea textArea = view.getTextArea();
-        startErrorSource();
-        ParserConfig config = new ParserConfig(view.getBuffer(), errorSource);
         ICoffeeScriptParser parser = new CoffeeScriptParser();
+        TextArea textArea = view.getTextArea();
+        DefaultErrorSource errorSource = getErrorSource(view);
+
+        ParserConfig config = new ParserConfig(view.getBuffer(), errorSource);
+        config.showErrors = true;   // always show compile errors
+        errorSource.clear();
+
         if (textArea.getSelectionCount() == 0) {
             results.add(parser.compile(textArea.getText(), config));
         } else {
@@ -41,16 +71,9 @@ public class CoffeeScriptSideKickPlugin extends EditPlugin {
         }
         if (errorSource.getErrorCount() == 0) {
             Buffer buffer = jEdit.newFile(view.getEditPane());
-            buffer.insert(0, results.join("\n"));
+            buffer.insert(0, results.join("\n").trim());
             buffer.setMode("javascript");
             buffer.setDirty(false);
-        }
-    }
-
-    @Override
-    public void stop() {
-        if (errorSource != null) {
-            ErrorSource.unregisterErrorSource(errorSource);
         }
     }
 }

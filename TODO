@@ -1,4 +1,3 @@
-  * Show compiler errors in ErrorList (if showErrors is true)
   * Delegate embedded JavaScript to the appropiate (partial) parser.
 
 Recognize more stuff

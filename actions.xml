@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <!DOCTYPE ACTIONS SYSTEM "actions.dtd">
 <ACTIONS>
-  <ACTION NAME="compile">
+  <ACTION NAME="coffeescript-compile-selection">
     <CODE>
-      sidekick.coffeescript.CoffeeScriptSideKickPlugin.compile(view);
+      sidekick.coffeescript.CoffeeScriptSideKickPlugin.compileSelection(view);
     </CODE>
   </ACTION>
 </ACTIONS>
