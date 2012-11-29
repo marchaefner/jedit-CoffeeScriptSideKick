@@ -56,8 +56,8 @@ public class CoffeeScriptSideKickPlugin extends EditPlugin {
         TextArea textArea = view.getTextArea();
         DefaultErrorSource errorSource = getErrorSource(view);
 
-        ParserConfig config = new ParserConfig(view.getBuffer(), errorSource);
-        config.showErrors = true;   // always show compile errors
+        ParserConfig config =
+                ParserConfig.forCompiling(view.getBuffer(), errorSource);
         errorSource.clear();
 
         if (textArea.getSelectionCount() == 0) {

@@ -14,40 +14,71 @@ import errorlist.ErrorSource;
  */
 public class ParserConfig {
     public boolean showErrors;
-    public boolean displayCodeParameters;
-    public boolean isCakefile;
+    public boolean displayCodeParameters = false;;
+    public boolean isCakefile = false;
     public int line = 0;
 
-    private Buffer buffer;
-    private DefaultErrorSource errorSource;
+    private final Buffer buffer;
+    private final DefaultErrorSource errorSource;
 
+    private
     ParserConfig(Buffer buffer, DefaultErrorSource errorSource) {
         this.buffer = buffer;
         this.errorSource = errorSource;
-        this.showErrors = Options.getBool("showErrors");
-        this.displayCodeParameters = Options.getBool("displayCodeParameters");
-        this.isCakefile = buffer.getName().equals("Cakefile");
     }
 
+    /**
+     * Build config for parsing.
+     */
+    static ParserConfig
+    forParsing(Buffer buffer, DefaultErrorSource errorSource) {
+        ParserConfig config = new ParserConfig(buffer, errorSource);
+        config.showErrors = Options.getBool("showErrors");
+        config.displayCodeParameters = Options.getBool("displayCodeParameters");
+        config.isCakefile = buffer.getName().equals("Cakefile");
+        return config;
+    }
+
+    /**
+     * Build config for compiling.
+     */
+    static ParserConfig
+    forCompiling(Buffer buffer, DefaultErrorSource errorSource) {
+        ParserConfig config = new ParserConfig(buffer, errorSource);
+        config.showErrors = true;
+        return config;
+    }
+
+    /**
+     * Logger function for the CoffeeScript parser.
+    */
     public void
     logError(String message) {
         Log.log(Log.ERROR, CoffeeScriptSideKickParser.class, message);
     }
 
+    /**
+     * Reporter function for the CoffeeScript parser.
+    */
     public void
     reportError(Integer line, String message) {
-        if (line == null) {
-            line = Integer.MAX_VALUE;
+        if (showErrors) {
+            if (line == null) {
+                line = Integer.MAX_VALUE;
+            }
+            this.errorSource.addError(
+                new DefaultErrorSource.DefaultError(this.errorSource,
+                                                    ErrorSource.ERROR,
+                                                    this.buffer.getPath(),
+                                                    line,
+                                                    0, 0,
+                                                    message));
         }
-        this.errorSource.addError(
-            new DefaultErrorSource.DefaultError(this.errorSource,
-                                                ErrorSource.ERROR,
-                                                this.buffer.getPath(),
-                                                line,
-                                                0, 0,
-                                                message));
     }
 
+    /**
+     * TreeNode factory for the CoffeeScript parser.
+    */
     public DefaultMutableTreeNode
     makeTreeNode(String name, String type, String qualifier,
                     int firstLine, int lastLine) {
