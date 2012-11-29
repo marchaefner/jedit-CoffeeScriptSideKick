@@ -5,7 +5,7 @@ import org.gjt.sp.jedit.*;
 /**
  * Singleton for easy access to plugin options
  */
-enum Options {INSTANCE;
+class Options {
     static final String
     OPTION_PREFIX = CoffeeScriptSideKickPlugin.OPTION_PREFIX;
 
