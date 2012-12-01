@@ -184,7 +184,6 @@ format_param = (node, parts=[], in_obj=false) ->
 class CoffeeScriptParser
     constructor: (@config={}) ->
         # set default config values
-        @config.showErrors ?= true
         @config.displayCodeParameters ?= false
         @config.isCakefile ?= false
         @config.line = Number(@config.line or 0)
@@ -230,13 +229,12 @@ class CoffeeScriptParser
 
     #### overrideable functions
     report_error: (line, error) =>
-        if @config.showErrors
-            error = error.message if error instanceof Error
-            line += @config.line if line?
-            if @config.reportError?
-                @config.reportError line ? null, error
-            else
-                print_error "#{line ? '?'}: #{error}"
+        error = error.message if error instanceof Error
+        line += @config.line if line?
+        if @config.reportError?
+            @config.reportError line ? null, error
+        else
+            print_error "#{line ? '?'}: #{error}"
 
     log_error: (message...) ->
         if @config.logError?
