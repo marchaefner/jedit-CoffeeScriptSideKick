@@ -242,44 +242,43 @@ class CoffeeScriptParser
         else
             print_error message...
 
+    # Build a node of the structure tree.
+    # It must have a constructor with the same signature as this function and
+    # a method `add` for adding child nodes.
     make_tree_node: (name, type, qualifier, first_line, last_line) ->
+        first_line += @config.line if first_line?
+        last_line += @config.line if last_line?
         if @config.makeTreeNode?
-            @config.makeTreeNode.apply(@config, arguments)
+            @config.makeTreeNode(name, type, qualifier, first_line, last_line)
         else
-            child_nodes = []
-            add: (node) -> child_nodes.push node
-            pprint: -> @_pprint().join('')
-            _pprint: (parts=[], prefix, last) ->
-                if prefix?
-                    parts.push prefix
-                    if last
-                        parts.push ' └─ '
-                        prefix = prefix+'    '
-                    else
-                        parts.push ' ├─ '
-                        prefix = prefix+' │  '
+            new TreeNode(name, type, qualifier, first_line, last_line)
+
+    # A simple structure tree / node for console output and testing.
+    class TreeNode
+        PREFIX = static: '@', hidden: '-', property: ' ', constructor: ' '
+        POSTFIX = class: ' class', task: ' task'
+        constructor: (name, type, qualifier, first_line, last_line) ->
+            @children = []
+            @name_display = [ PREFIX[qualifier], name, POSTFIX[type] ]
+            if first_line?
+                @name_display.push ' [', first_line, '..', last_line, ']'
+        add: (node) ->
+            @children.push node
+        pprint: (parts=[], prefix='', is_last) ->
+            if is_not_root = parts.length
+                parts.push prefix
+                if is_last
+                    parts.push  ' └─ '
+                    prefix +=   '    '
                 else
-                    prefix = ''
-                switch qualifier
-                    when 'static'
-                        parts.push '@'
-                    when 'hidden'
-                        parts.push '-'
-                    when 'property', 'constructor'
-                        parts.push ' '
-                parts.push name
-                switch type
-                    when "class"
-                        parts.push ' class'
-                    when "task"
-                        parts.push ' task'
-                if first_line?
-                    parts.push ' [', first_line, '..', last_line, ']'
+                    parts.push  ' ├─ '
+                    prefix +=   ' │  '
+            parts.push @name_display...
+            last_index = @children.length-1
+            for child, i in @children
                 parts.push '\n'
-                last = child_nodes.length-1
-                for child, i in child_nodes
-                    child._pprint(parts, prefix, i is last)
-                return parts
+                child.pprint(parts, prefix, i is last_index)
+            return parts.join('') unless is_not_root
 
     #### AST walker
     walk_ast: (nodes, parent, parent_last_line, parent_class, in_prototype) ->
