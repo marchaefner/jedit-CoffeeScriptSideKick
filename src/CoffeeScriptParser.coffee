@@ -2,10 +2,6 @@ Nodes = require './nodes'
 {last} = require './helpers'
 {INVERSES} = require './rewriter'
 
-Object.create ?= (proto) ->
-    (ctor = ->).prototype = proto
-    new ctor
-
 # Unfified output to stderr for node.js and Rhino.
 print_error =   if java?
                     (args...) -> java.lang.System.err.println args.join(' ')
