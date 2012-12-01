@@ -15,9 +15,15 @@ print_error =   if java?
 # ## Lexer
 class Lexer extends require('./lexer').Lexer
     constructor: (report_error) ->
-        # Override `error` to just report (instead of throwing) and return to
-        # lexing.
-        @error = (message) -> report_error @line, message
+        # Override to just report (instead of throwing) and return to lexing.
+        @error = (message) ->
+            @failed = true
+            report_error @line, message
+
+    # Reset failed flag before lexing.
+    tokenize: ->
+        @failed = false
+        return super
 
     # Redefine `pair` to be more forgiving for unclosed parenthesis
     pair: (tag) ->
@@ -207,7 +213,7 @@ class CoffeeScriptParser
 
     compile: (source) ->
         ast = @nodes(source)
-        if ast and not @parser.failed
+        if ast and not (@lexer.failed or @parser.failed)
             try
                 return ast.compile(bare: true)
             catch error
