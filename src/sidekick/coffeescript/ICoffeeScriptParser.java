@@ -1,7 +1,5 @@
 package sidekick.coffeescript;
 
-import java.util.List;
-
 /**
  * Interface for CoffeeScriptParser.coffee/.js/.class
  */
