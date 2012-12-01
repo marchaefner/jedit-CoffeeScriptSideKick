@@ -84,10 +84,9 @@ guard_node = (Node, node_name, parser, report_error) ->
             try
                 return method.apply(this, arguments)
             catch error
-                unless error instanceof AbortCompilation
+                unless error is ABORT_COMPILATION
                     report_error @first_line, error
-                    throw new AbortCompilation
-                throw error
+                throw ABORT_COMPILATION
 
     class GuardedNode extends Node
         # Catch instantiation error and report, then continue parsing.
@@ -109,8 +108,8 @@ guard_node = (Node, node_name, parser, report_error) ->
         toString: (idt = '', name = node_name) ->
             super idt, name
 
-# Error indicating that error reporting already happened.
-class AbortCompilation extends Error
+# Error for terminating compilation (after error reporting happened).
+ABORT_COMPILATION = new Error('Abort compilation')
 
 
 # ## helper functions for the AST walker
@@ -217,7 +216,7 @@ class CoffeeScriptParser
             try
                 return ast.compile(bare: true)
             catch error
-                unless err instanceof AbortCompilation
+                unless error is ABORT_COMPILATION
                     @log_error "Compiler error: #{error}"
         null
 
