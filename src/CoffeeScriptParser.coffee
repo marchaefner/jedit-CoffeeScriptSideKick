@@ -437,7 +437,7 @@ class CoffeeScriptParser
                     format_param(obj, parts, true)
                 parts.push '}'
             else
-                parts.push '_'
+                parts.push '<?>'
         parts
 
 
