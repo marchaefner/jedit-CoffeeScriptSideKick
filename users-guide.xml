@@ -29,9 +29,8 @@
   </para>
   <para>
     Contains the CoffeeScript 1.4.0 parser which has been modified to record
-    line numbers and report and skip erroneous constructs. The resulting AST
-    is used to construct the SideKick tree. Parser errors are forwarded to the
-    ErrorList.
+    line numbers and handle erroneous constructs better. The resulting AST
+    is used to construct the SideKick tree.
   </para>
 </chapter>
 
@@ -41,7 +40,7 @@
       <glossterm>Show parser errors in ErrorList</glossterm>
       <glossdef><para>
         Syntax errors encountered while parsing will be forwarded to the
-        ErrorList.</para></glossdef>
+        Error List.</para></glossdef>
     </glossentry>
     <glossentry>
       <glossterm>Display function parameters</glossterm>
@@ -51,7 +50,7 @@
         </para><para>
         Destructuring parameters are partially supported: In objects only
         the lookup keys are displayed. If a key in an array is to complex it
-        may be replaced by an underline.</para></glossdef>
+        will be replaced by <code>&lt;?&gt;</code>.</para></glossdef>
     </glossentry>
     <glossentry>
       <glossterm>Show icons</glossterm>
@@ -63,7 +62,8 @@
       <glossterm>Show prefix for hidden and class members</glossterm>
       <glossdef><para>
         Prefix hidden members with a minus (<code>-</code>) and class members
-        with an at symbol (<code>@</code>).</para><para>
+        with an at symbol (<code>@</code>).
+        </para><para>
         (Hidden members are functions and subclasses in a class that are not
         assigned as a prototype property.)</para></glossdef>
     </glossentry>
@@ -76,65 +76,79 @@
   </glosslist>
 </chapter>
 
-<chapter id="function"><title>Functional scope</title>
+<chapter id="parser"><title>SideKick Parser</title>
+  <itemizedlist><title>Recognized constructs</title>
+    <listitem>
+      <para>
+        Class declarations
+        <programlisting>
+            class C
+        </programlisting>
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        Assignments of class and code to variables or properties
+        (including conditional assignments)
+        <programlisting>
+          f = (x, y, z) ->
+          C = class
+          o.f = (a, b)->
+          f ?= () ->
+        </programlisting>
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        Property assignments inside class declarations
+        <programlisting>
+          class C
+            @static: (a, b) ->
+            method: (x, y, z) ->
+            D: class
+        </programlisting>
+      </para>
+    </listitem>
+    <listitem>
+      <para>
+        Task definitions in a Cakefile
+        <programlisting>
+          task "build", "builds the source", -> ...
+        </programlisting>
+      </para>
+    </listitem>
+  </itemizedlist>
   <para>
-    Currently these constructs are recognized:
-    <itemizedlist>
-      <listitem>
-        <para>
-          Class declarations
-          <programlisting>
-            class C
-          </programlisting>
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          Assignments of class and code to variables or properties
-          (including conditional assignments)
-          <programlisting>
-            f = (x, y, z) ->
-            C = class
-            o.f = (a, b)->
-            f ?= () ->
-          </programlisting>
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          Property assignments inside class declarations
-          <programlisting>
-            class C
-              @static: (a, b) ->
-              method: (x, y, z) ->
-              D: class
-          </programlisting>
-        </para>
-      </listitem>
-      <listitem>
-        <para>
-          Task definitions in a Cakefile
-          <programlisting>
-            task "build", "builds the source", -> ...
-          </programlisting>
-        </para>
-      </listitem>
-    </itemizedlist>
     These must be either top level constructs or within previously recognized
     constructs. They may not be parenthesised or otherwise wrapped (e.g.
     inside call parameters).
   </para>
+  <formalpara><title>The structure tree</title><para>
+    Represents the source structure (which is not necessarily the functional structure).
+  </para></formalpara><para>
+    The name of a tree node is the first (leftmost) recognizable assignment or
+    the "real" class name. Property assignments will result in a dotted name.
+    <informalexample><simplelist><member>
+      <code>exports['E'] = D = class</code> will show up as a single node
+      <computeroutput>exports.E</computeroutput>.
+    </member><member>
+      <code>exports['E'] = D = class C</code> will result in a node
+      <computeroutput>C</computeroutput>.
+    </member></simplelist></informalexample>
+  </para>
+</chapter>
+
+<chapter id="compile"><title>Compile action</title>
   <para>
-    The name of the SideKick node is the first (leftmost) recognizable
-    assignment or the "real" class name. Property assignments will result in a
-    dotted name. E.g. <code>exports['E'] = D = class</code> will show up as a
-    single node <code>exports.E &lt;class&gt;</code> while
-    <code>exports['E'] = D = class C</code> will result in a node
-    <code>C &lt;class&gt;</code>.
+    This plugin provides an action <guilabel>Compile selection with
+    CoffeeScript</guilabel> which can be assigned to a keyboard shortcut or
+    a toolbar button. It is intended to allow a preview of the compiler output
+    (and not as a build tool).
   </para>
   <para>
-    The resulting tree represents the source structure (which is not
-    necessarily the functional structure).
+    The action compiles text from selection or the buffer (if nothing is
+    selected) and opens the generated JavaScript in a new buffer. If the
+    compilation fails errors are displayed in the ErrorList.
   </para>
 </chapter>
 
