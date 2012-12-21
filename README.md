@@ -10,6 +10,10 @@ tree. Errors encountered while parsing will be forwarded to ErrorList.
 This plugin uses a modified version of CoffeeScript 1.4.0 which runs inside
 the Rhino JavaScript engine.
 
+## Installation
+
+The latest released version can be installed with the jEdit Plugin Manager.
+
 ## Building
 
 The actual parser and tree builder is written in CoffeeScript. Callbacks to
@@ -24,7 +28,7 @@ included.
 ### Requirements
 
   * jEdit plugin building environment
-  * jEdit plugins: ErrorList, SideKick and Rhino (version 1.7R4, see below)
+  * jEdit plugins: ErrorList, SideKick and Rhino
   * [Node.js][] - required to execute the `Cakefile`
   * [Jison][] - JavaScript Parser Generator (installable with npm)
 
@@ -38,33 +42,6 @@ recursivly:
 or update the submodule after cloning:
 
     git submodule update --init
-
-### Updating the Rhino Plugin
-
-This plugin builds (and therefore runs) only with Rhino version 1.7R4.
-At the current time (2012/11) the official Rhino plugin ships with version
-1.7R3_1 and needs to be updated like so:
-
-  1. get plugin source
-  2. patch `ivy.xml` and `RhinoPlugin.props` (as shown below)
-  3. build
-
-changes in `ivy.xml`:
-
-    @@ -3,4 +3,4 @@
-         <dependencies>
-    -        <dependency org="org.mozilla" name="rhino" rev="1.7R3"/>
-    +        <dependency org="org.mozilla" name="rhino" rev="1.7R4"/>
-             <dependency org="junit" name="junit" rev="4.8.2"/>
-         </dependencies>
-
-changes in `RhinoPlugin.props`:
-
-    @@ -4,3 +4,3 @@
-     plugin.rhino.RhinoPlugin.author=http://www.mozilla.org/rhino/
-    -plugin.rhino.RhinoPlugin.version=1.7R3_1
-    +plugin.rhino.RhinoPlugin.version=1.7R4
-     plugin.rhino.RhinoPlugin.depend.0=jedit 04.04.99.00
 
 [jEdit]: http://jedit.org/
 [CoffeeScript]: http://coffeescript.org/
