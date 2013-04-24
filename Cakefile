@@ -2,7 +2,7 @@ fs      = require 'fs'
 {spawn} = require 'child_process'
 
 # Extend `task` to use `option_defaults` and provide callbacks (task chaining)
-(->
+do ->
     tasks = {}
     _task = global.task
     global.task = (name, description, actions...) ->
@@ -19,7 +19,6 @@ fs      = require 'fs'
         tasks[name] = (options, callbacks...) ->
             fnc(options, callchain.concat(callbacks)...)
         _task name, description, tasks[name]
-)()
 
 # Options and defaults
 option  '-n', '--node [CMD]',           'path to node executable'
@@ -45,13 +44,13 @@ run = (command, args, callback) ->
 
 ## Tasks
 task 'build:source', 'build from source', (o, callback) ->
+    files = []
+    files.push  "#{o.source}/#{file}" for file in [
+        'lexer.coffee', 'grammar.coffee', 'CoffeeScriptParser.coffee']
+    files.push  "#{o.coffeescript}/src/#{file}" for file in [
+        'helpers.coffee', 'rewriter.coffee', 'nodes.coffee', 'scope.litcoffee']
     run o.node,
-        ["#{o.coffeescript}/bin/coffee", '-c', '-o', o.build].concat(
-            ['lexer', 'grammar', 'CoffeeScriptParser'].map( (file) ->
-                "#{o.source}/#{file}.coffee")).concat(
-            ['helpers', 'rewriter', 'scope', 'nodes'].map( (file) ->
-                "#{o.coffeescript}/src/#{file}.coffee")
-        ),
+        ["#{o.coffeescript}/bin/coffee", '-c', '-o', o.build].concat(files),
         callback
 
 task 'build:parser', 'build the parser', 'build:source', (o)->

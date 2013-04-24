@@ -22,7 +22,7 @@ class Lexer extends require('./lexer').Lexer
         # Override to just report (instead of throwing) and return to lexing.
         @error = (message) ->
             @failed = true
-            report_error @line, message
+            report_error @chunkLine, message
 
     # Reset failed flag before lexing.
     tokenize: ->
@@ -48,18 +48,12 @@ class Lexer extends require('./lexer').Lexer
 
 # ## Parser
 class Parser extends require('./parser').Parser
-    constructor: (report_error) ->
-        # Override to report error and mark this parser failed.
-        @parseError = (message, info) ->
-            @failed = true
-            # Remove 'error on line' as it is not needed and does not reflect
-            # line offset.
-            report_error info.line, message.replace(/.*on line \d.*:\s*/, '')
+    constructor: (@report_error) ->
+        @yy = Nodes
 
-        # Set `.yy` and wrap nodes so errors will be reported.
-        @yy = Object.create Nodes
-        for name, Node of Nodes when Node.prototype instanceof Nodes.Base
-            @yy[name] = guard_node(Node, name, this, report_error)
+        # Errors from node construction and compilation
+        parser = this
+        @yy.Base::error = (message) -> parser.error @locationData, message
 
     # Reset `failed` flag before parsing.
     parse: ->
@@ -69,52 +63,55 @@ class Parser extends require('./parser').Parser
     # Add a `.yylloc` to lexer.
     lexer:
         lex: ->
-            [tag, @yytext, @yylineno] = @tokens[@pos++] or ['']
-            @yylloc =
-                first_line:     @yylineno
-                last_line:      @yylineno
-                first_column:   0
-                last_column:    0
+            token = @tokens[@pos++]
+            if token
+                [tag, @yytext, @yylloc] = token
+                @yylineno = @yylloc.first_line
+            else
+                tag = ''
             tag
         setInput: (@tokens) ->
             @pos = 0
         upcomingInput: ->
             ''
+        # helper function for parseError
+        nextRealToken: ->
+            i = @pos
+            while t = @tokens[i++]
+                break unless t.generated and t[0] in ['OUTDENT', 'TERMINATOR']
+            t
 
-    # Extend an AST Node class (see nodes.coffee) to override methods that
-    # might throw Errors when parsing or compiling. The wrapped node will be
-    # instantiated by the parser (and not by other nodes).
-    guard_node = (Node, node_name, parser, report_error) ->
-        class GuardedNode extends Node
-            constructor: ->
-                try
-                    return super
-                catch error
-                    parser.failed = true
-                    # This node does not yet have a `@first_line`, therefore
-                    # use `yylineno` from the parser/lexer directly.
-                    report_error parser.lexer.yylineno, error
+    # Override Jison parser error function
+    parseError: (message, {line, token:tag}) ->
+        switch tag
+            when 'INDENT'
+                message = "unexpected indentation"
+            when 'OUTDENT'
+                # Move error to the start of the next token.
+                # (Skip whitespace and generated tokens)
+                if token = @lexer.nextRealToken()
+                    message = "missing indentation"
+                    {first_line, first_column} = token[2]
+                    location =
+                        first_line:     first_line
+                        first_column:   first_column
+                        last_line:      first_line
+                        last_column:    first_column
+                else
+                    tag = 1     # It's actually an unexpected EOF error.
 
-            # Override to produce nicer debug output.
-            toString: (idt = '', name = node_name) ->
-                super idt, name
+        if tag is 1
+            message = "unexpected end of input"
+            location = null
+        else
+            message ?= "unexpected #{tag}"
+            location ?= @lexer.yylloc
 
-            # Override all compile methods.
-            for own name, property of Node.prototype
-                if /^compile/.test(name) and typeof property is 'function'
-                    this.prototype[name] =
-                        guard_compile_method(property, report_error)
+        @error location, message
 
-    # Wrap method to catch and report error, then abort compilation.
-    guard_compile_method = (method, report_error) ->
-        ->
-            try
-                return method.apply(this, arguments)
-            catch error
-                unless error is ABORT_COMPILATION
-                    report_error @first_line, error
-                throw ABORT_COMPILATION
-
+    error: (location, message) ->
+        @failed = true
+        @report_error location?.first_line, message
 
 # ## Parser and tree builder
 class CoffeeScriptParser
@@ -130,14 +127,11 @@ class CoffeeScriptParser
 
     #### Interface
     nodes: (source) ->
-        # make sure it's a javascript string
-        source = String source
-        # workaround for coffeescript bug
-        @config.line -= 1 if /^[^\n\S]+/.test source
-
+        source = String source  # make sure it's a javascript string
         try
-            return @parser.parse @lexer.tokenize source
+            return @parser.parse @lexer.tokenize source, line: @config.line
         catch error
+            throw error
             @log_error "Parser error: #{error}"
         null
 
@@ -145,11 +139,14 @@ class CoffeeScriptParser
         ast = @nodes(source)
         if ast and not (@lexer.failed or @parser.failed)
             try
-                return ast.compile(bare: true)
+                result = ast.compile(bare: true)
             catch error
-                unless error is ABORT_COMPILATION
-                    @log_error "Compiler error: #{error}"
-        null
+                @parser.failed = true
+                @log_error "Compiler error: #{error}"
+            if @parser.failed
+                # Compile errors set `failed` to true (via Base::error).
+                result = null
+        result
 
     parse: (source, root='<file>') ->
         if typeof root is 'string'
@@ -158,7 +155,7 @@ class CoffeeScriptParser
         nodes = @nodes(source)?.expressions
         if nodes?.length
             try
-                @walk_ast(nodes, root, nodes[nodes.length-1].last_line)
+                @walk_ast(nodes, root)
             catch error
                 @log_error "Tree builder error: #{error}"
         return root
@@ -170,7 +167,6 @@ class CoffeeScriptParser
     # Report an error from parser or compiler to the user.
     report_error: (line, error) =>
         error = error.message if error instanceof Error
-        line += @config.line if line?
         if @config.reportError?
             @config.reportError line ? null, error
         else
@@ -187,8 +183,6 @@ class CoffeeScriptParser
     # It must have a constructor with the same signature as this function and
     # a method `add` for adding child nodes.
     make_tree_node: (name, type, qualifier, first_line, last_line) ->
-        first_line += @config.line if first_line?
-        last_line += @config.line if last_line?
         if @config.makeTreeNode?
             @config.makeTreeNode(name, type, qualifier, first_line, last_line)
         else
@@ -222,17 +216,8 @@ class CoffeeScriptParser
             return parts.join('') unless is_not_root
 
     #### AST walker
-    walk_ast: (nodes, parent, parent_last_line, parent_class, in_prototype) ->
-        last_index = nodes.length-1
+    walk_ast: (nodes, parent, parent_class, in_prototype) ->
         for node, node_index in nodes
-            # `node.last_line` can overlap the next expression if the rewriter
-            # adds implicit parentheses, so we fix it here
-            last_line = Math.min(node.last_line, parent_last_line)
-            if node_index < last_index
-                next_node_line = nodes[node_index+1].first_line
-                if last_line == next_node_line
-                    last_line = Math.max(node.first_line, next_node_line-1)
-
             node_name = null
 
             # **task** definitions in Cakefiles
@@ -244,8 +229,8 @@ class CoffeeScriptParser
                 parent.add @make_tree_node  name,
                                             'task',
                                             '',
-                                            node.first_line,
-                                            last_line
+                                            node.locationData.first_line,
+                                            node.locationData.last_line
                 continue
             # **assign expression**
             else if node instanceof Nodes.Assign
@@ -271,7 +256,6 @@ class CoffeeScriptParser
             else if parent_class and node.isObject?(true)
                 @walk_ast   node.base.properties,
                             parent,
-                            last_line,
                             parent_class,
                             true
                 continue
@@ -286,7 +270,6 @@ class CoffeeScriptParser
                     expressions.push node.otherwise.expressions...
                 @walk_ast   expressions,
                             parent,
-                            last_line,
                             parent_class,
                             in_prototype
                 continue
@@ -306,7 +289,6 @@ class CoffeeScriptParser
                     expressions = node.body.expressions
                 @walk_ast   expressions,
                             parent,
-                            last_line,
                             parent_class,
                             in_prototype
                 continue
@@ -354,12 +336,11 @@ class CoffeeScriptParser
                 tree_node = @make_tree_node name,
                                             type,
                                             qualifier,
-                                            node.first_line,
-                                            last_line
+                                            node.locationData.first_line,
+                                            node.locationData.last_line
 
                 @walk_ast   node.body.expressions,
                             tree_node,
-                            last_line,
                             node_is_class and (@get_class_name(node) or true),
                             false
                 parent.add tree_node
@@ -376,7 +357,7 @@ class CoffeeScriptParser
             name = "_#{name}" if name.reserved
             return name
         catch error
-            @report_error node.first_line, error
+            @report_error node.locationData.first_line, error
             return node.variable.base.value
 
     # Get name (an array of strings) from a Value node.

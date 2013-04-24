@@ -77,7 +77,7 @@ class test  # Misuse class for scoping, it is actually used as an object
 
 # ## Parser tests
 
-test.parsing 'assignments'
+test.parsing 'assignments',
     code: """
             f = ->
                 g = ->
@@ -94,7 +94,7 @@ test.parsing 'assignments'
                      └─ -h [4..4]
          """
 
-test.parsing 'class structure'
+test.parsing 'class structure',
     code: """
             class x.C
                 hidden_code = ->
@@ -119,7 +119,7 @@ test.parsing 'class structure'
                  └─ @class_method3 [8..8]
           """
 
-test.parsing 'code in blocks'
+test.parsing 'code in blocks',
     code: """
             while false
                 if false
@@ -141,7 +141,7 @@ test.parsing 'code in blocks'
              └─ g [10..10]
           """
 
-test.parsing 'tasks in Cakefile'
+test.parsing 'tasks in Cakefile',
     config:
         isCakefile: true
     code: """
@@ -156,7 +156,7 @@ test.parsing 'tasks in Cakefile'
              └─ clear task [2..2]
           """
 
-test.parsing 'reserved identifiers'
+test.parsing 'reserved identifiers',
     code: """
             yield = -> private"""
     tree: """
@@ -165,7 +165,7 @@ test.parsing 'reserved identifiers'
     [0, /yield/]
     [0, /private/]
 
-test.parsing 'unclosed parentheses in block'
+test.parsing 'unclosed parentheses in block',
     code: """
             f = ->
                 x([{
@@ -174,11 +174,28 @@ test.parsing 'unclosed parentheses in block'
             <root>
              ├─ f [0..1]
              └─ g [2..2]"""
-    [2, /\(/]
-    [2, /\[/]
-    [2, /{/]
+    [1, /\(/]
+    [1, /\[/]
+    [1, /{/]
 
-test.parsing 'code parameters'
+test.parsing 'indentation errors',
+    code: """
+            f = ->
+              1 /
+            0
+            g = ->
+            0
+              0
+            h = ->"""
+    tree: """
+            <root>
+             ├─ f [0..1]
+             ├─ g [3..3]
+             └─ h [6..6]"""
+    [2, /missing indentation/i]
+    [5, /unexpected indentation/i]
+
+test.parsing 'code parameters',
     config:
         displayCodeParameters: true
     code: """
@@ -193,7 +210,7 @@ test.parsing 'code parameters'
              ├─ h([a, b], {c, e}) [2..2]
              └─ i([[a, [b]]], {c, e}) [3..3]"""
 
-test.parsing 'illegal code parameters'
+test.parsing 'illegal code parameters',
     config:
         displayCodeParameters: true
     code: """
@@ -208,7 +225,7 @@ test.parsing 'illegal code parameters'
     # compile time and will not produce errors while parsing. Hence no test
     #       g = ([eval], {arguments}) ->
 
-test.parsing 'with line offset'
+test.parsing 'with line offset',
     config:
         line: line_off = Math.ceil(Math.random()*42)
     code: """
@@ -223,7 +240,7 @@ test.parsing 'with line offset'
     [line_off+1, /yield/]
     [line_off+1, /private/]
 
-test.parsing 'special class names'
+test.parsing 'special class names',
     code: """
             C = class
                 C.hidden = ->
@@ -262,7 +279,7 @@ test.parsing 'special class names'
                  └─  method [15..15]"""
     [8, /eval/]
 
-test.compiling 'harmless code'
+test.compiling 'harmless code',
     code: """
             C = class D
                 constructor: ->
@@ -278,7 +295,7 @@ test.compiling 'harmless code'
 
 # ## Compiler tests
 
-test.compiling 'with lexer errors'
+test.compiling 'with lexer errors',
     code: """
             class yield
             private = ([eval], {arguments}) ->"""
@@ -290,7 +307,7 @@ test.compiling 'with lexer errors'
     # lexer or parser. The compiler errors on the last code line should
     # therefore not be reported.
 
-test.compiling 'with parser errors'
+test.compiling 'with parser errors',
     code: """
             f = (eval, arguments) ->
             g = ([eval], {arguments}) ->"""
@@ -302,16 +319,14 @@ test.compiling 'with parser errors'
     # lexer or parser. The compiler errors on the last code line should
     # therefore not be reported.
 
-test.compiling 'with compiler errors'
+test.compiling 'with compiler errors',
     code: """
             f = ([eval], {arguments}) ->"""
     compiled: null
     [0, /eval/]
-    # NOTE
-    # Compilation stops after the first error. Therefore the errornous
-    # `{arguments}` parameter will not be reported.
+    [0, /arguments/]
 
-test.compiling 'with lexer and parser errors and line offset'
+test.compiling 'with lexer and parser errors and line offset',
     config:
             line: line_off = Math.ceil(Math.random()*42)
     code: """
@@ -328,13 +343,15 @@ test.compiling 'with lexer and parser errors and line offset'
     # lexer or parser. The compiler errors on the last code line should
     # therefore not be reported.
 
-test.compiling 'with compiler error and line offset'
+test.compiling 'with compiler error and line offset',
     config:
             line: line_off = Math.ceil(Math.random()*42)
     code: """
             g = ([eval], {arguments}) ->"""
     compiled: null
     [line_off, /eval/]
+    [line_off, /arguments/]
+
 
 if test.failed
     process.stdout.on 'drain', -> process.exit(1)

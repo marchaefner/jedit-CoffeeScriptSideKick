@@ -1,13 +1,13 @@
 # CoffeeScript SideKick Plugin for jEdit
 
-This [jEdit][] plugin provides a SideKick parser for the [CoffeeScript][]
+This [jEdit] plugin provides a SideKick parser for the [CoffeeScript]
 language.
 
 The SideKick tree represents (most) classes and functions according to their
 position in the source code. In Cakefiles, tasks will also be added to the
 tree. Errors encountered while parsing will be forwarded to ErrorList.
 
-This plugin uses a modified version of CoffeeScript 1.4.0 which runs inside
+This plugin uses a modified version of CoffeeScript which runs inside
 the Rhino JavaScript engine.
 
 ## Installation
@@ -29,12 +29,12 @@ included.
 
   * jEdit plugin building environment
   * jEdit plugins: ErrorList, SideKick and Rhino
-  * [Node.js][] - required to execute the `Cakefile`
-  * [Jison][] - JavaScript Parser Generator (installable with npm)
+  * [Node.js] - required to execute the `Cakefile`
+  * [Jison] - JavaScript Parser Generator (installable with npm)
 
 ### git-submodule `coffee-script`
 
-CoffeeScript 1.4.0 is included as a git submodule. Either clone this project
+CoffeeScript is included as a git submodule. Either clone this project
 recursivly:
 
     git clone --recursive git://github.com/marchaefner/jedit-CoffeeScriptSideKick.git
