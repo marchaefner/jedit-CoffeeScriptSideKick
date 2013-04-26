@@ -61,17 +61,26 @@ public class ParserConfig {
      * Reporter function for the CoffeeScript parser.
     */
     public void
-    reportError(Integer line, String message) {
+    reportError(String message,
+                Integer line, Integer first_column, Integer last_column) {
         if (showErrors) {
             if (line == null) {
                 line = Integer.MAX_VALUE;
+                first_column = last_column = 0;
+            } else if (first_column == null) {
+                first_column = last_column = 0;
+            } else if (last_column == null) {
+                last_column = first_column;
+            } else {
+                last_column += 1; // span ends _after_ the last character
             }
             this.errorSource.addError(
                 new DefaultErrorSource.DefaultError(this.errorSource,
                                                     ErrorSource.ERROR,
                                                     this.buffer.getPath(),
                                                     line,
-                                                    0, 0,
+                                                    first_column,
+                                                    last_column,
                                                     message));
         }
     }

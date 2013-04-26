@@ -1,6 +1,7 @@
 # This is a modified copy from the CoffeeScript source.
 #   * Rephrased NUMBER regex to improve speed in Rhino.
-#   * OUTDENT tokens end before the less indented line.
+#   * OUTDENT tokens end before the less-indented line.
+#   * Removed premature error reporting for assignment to reserved identifier.
 
 # The CoffeeScript Lexer. Uses a series of token-matching regexes to attempt
 # matches against the beginning of the source code. When a match is found,
@@ -400,8 +401,6 @@ exports.Lexer = class Lexer
     tag  = value
     prev = last @tokens
     if value is '=' and prev
-      if not prev[1].reserved and prev[1] in JS_FORBIDDEN
-        @error "reserved word \"#{@value()}\" can't be assigned"
       if prev[1] in ['||', '&&']
         prev[0] = 'COMPOUND_ASSIGN'
         prev[1] += '='

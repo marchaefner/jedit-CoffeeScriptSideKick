@@ -9,20 +9,21 @@ print_error =   if java?
                 else
                     (args...) -> console.error args...
 
-# Error for terminating compilation after error reporting happened.
-ABORT_COMPILATION = new Error('Abort compilation')
-
-
 # ## Lexer
-class Lexer extends require('./lexer').Lexer
+class Lexer extends LexerParent = require('./lexer').Lexer
     {last} = require './helpers'
     {INVERSES} = require './rewriter'
 
     constructor: (report_error) ->
-        # Override to just report (instead of throwing) and return to lexing.
-        @error = (message) ->
-            @failed = true
-            report_error @chunkLine, message
+        # Override error to just report (instead of throwing) and return to
+        # lexing. Do globally so it works in interpolations as well (for which
+        # a new lexer will be instantiated).
+        self = this
+        LexerParent::error = (message) ->
+            self.failed = true
+            report_error message,
+                first_line: @chunkLine
+                first_column: @chunkColumn
 
     # Reset failed flag before lexing.
     tokenize: ->
@@ -53,7 +54,7 @@ class Parser extends require('./parser').Parser
 
         # Errors from node construction and compilation
         parser = this
-        @yy.Base::error = (message) -> parser.error @locationData, message
+        @yy.Base::error = (message) -> parser.error message, @locationData
 
     # Reset `failed` flag before parsing.
     parse: ->
@@ -78,40 +79,43 @@ class Parser extends require('./parser').Parser
         nextRealToken: ->
             i = @pos
             while t = @tokens[i++]
-                break unless t.generated and t[0] in ['OUTDENT', 'TERMINATOR']
+                break unless t.generated or t[0] in ['OUTDENT', 'TERMINATOR']
             t
 
     # Override Jison parser error function
-    parseError: (message, {line, token:tag}) ->
+    parseError: (_, {line, token:tag}) ->
         switch tag
+            when 'TERMINATOR'
+                message = 'unexpected end of expression'
             when 'INDENT'
-                message = "unexpected indentation"
+                message = 'unexpected indentation'
             when 'OUTDENT'
                 # Move error to the start of the next token.
                 # (Skip whitespace and generated tokens)
                 if token = @lexer.nextRealToken()
-                    message = "missing indentation"
+                    message = 'missing indentation'
                     {first_line, first_column} = token[2]
                     location =
                         first_line:     first_line
                         first_column:   first_column
-                        last_line:      first_line
-                        last_column:    first_column
                 else
                     tag = 1     # It's actually an unexpected EOF error.
 
-        if tag is 1
-            message = "unexpected end of input"
-            location = null
+        if tag in [1, 'TERMINATOR']
+            message = 'unexpected end of input'
+            {first_line, first_column} = @lexer.yylloc
+            location =
+                first_line:     first_line
+                first_column:   first_column
         else
             message ?= "unexpected #{tag}"
-            location ?= @lexer.yylloc
+        location ?= @lexer.yylloc
 
-        @error location, message
+        @error message, location
 
-    error: (location, message) ->
+    error: (message, location) ->
         @failed = true
-        @report_error location?.first_line, message
+        @report_error message, location
 
 # ## Parser and tree builder
 class CoffeeScriptParser
@@ -131,7 +135,7 @@ class CoffeeScriptParser
         try
             return @parser.parse @lexer.tokenize source, line: @config.line
         catch error
-            throw error
+            @parser.failed = true
             @log_error "Parser error: #{error}"
         null
 
@@ -164,13 +168,20 @@ class CoffeeScriptParser
     #   These may be redefined by their CamelCase counterparts in the `config`
     #   object specified on instantiation.
 
-    # Report an error from parser or compiler to the user.
-    report_error: (line, error) =>
-        error = error.message if error instanceof Error
+    # Report an error from lexer, parser or compiler to the user.
+    report_error: (message, location = {}) =>
+        {first_line, first_column, last_line, last_column} = location
+        if not first_line?
+            first_line = null
+            first_column = null
+            last_column = null
+        else if first_line != last_line
+            last_column = null
+
         if @config.reportError?
-            @config.reportError line ? null, error
+            @config.reportError message, first_line, first_column, last_column
         else
-            print_error "#{line ? '?'}: #{error}"
+            print_error "#{first_line ? '?'}: #{message}"
 
     # Error logger
     log_error: (message...) ->
@@ -217,7 +228,7 @@ class CoffeeScriptParser
 
     #### AST walker
     walk_ast: (nodes, parent, parent_class, in_prototype) ->
-        for node, node_index in nodes
+        for node in nodes
             node_name = null
 
             # **task** definitions in Cakefiles
@@ -352,13 +363,9 @@ class CoffeeScriptParser
     # This is the name of the constructor function in the compiled
     # JavaScript.
     get_class_name: (node) ->
-        try
-            name = node.determineName() or '_Class'
-            name = "_#{name}" if name.reserved
-            return name
-        catch error
-            @report_error node.locationData.first_line, error
-            return node.variable.base.value
+        name = node.determineName() or '_Class'
+        name = "_#{name}" if name.reserved
+        return name
 
     # Get name (an array of strings) from a Value node.
     # If this fails, return nothing.

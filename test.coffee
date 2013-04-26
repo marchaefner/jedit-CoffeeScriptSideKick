@@ -13,29 +13,34 @@ class test  # Misuse class for scoping, it is actually used as an object
         test_errors = []
         reported_errors = []
         config = test.config ?= {}
-        config.reportError  ?= (line, msg) -> reported_errors.push {line, msg}
         config.logError     ?= (msg) -> fail 'Internal Error', msg
+        config.reportError  ?= (msg, location...) ->
+            location = location.filter (i) -> i?
+            reported_errors.push {location, msg}
 
     evaluate = (expected_errors) ->
         # Find undetected error and drop reported errors that were expected.
-        undetected_errors = expected_errors.filter ([line, regex]) ->
+        undetected_errors = expected_errors.filter ([location..., regex]) ->
             undetected = true
             reported_errors = reported_errors.filter (error) ->
-                if line == error.line and regex.test error.msg
+                if "#{location}" == "#{error.location}" and regex.test error.msg
                     undetected = false
                 else
                     true
             return undetected
+
         if undetected_errors.length
             fail 'undetected errors'
-            for [line, {source: regex}] in undetected_errors
-                fail "  #{line}: /#{regex}/"
+            for [location..., {source: regex}] in undetected_errors
+                fail "  #{location}: /#{regex}/"
         if reported_errors.length
             fail 'unexpected errors'
-            for {line, msg} in reported_errors
-                fail "  #{line}: #{msg}"
+            for {location, msg} in reported_errors
+                fail "  #{location}: #{msg}"
 
-        test.failed and= test_errors.length # Set global status.
+        # Update global error status.
+        if test_errors.length
+            test.failed = true
 
     print_report = ->
         if test_errors.length
@@ -162,8 +167,8 @@ test.parsing 'reserved identifiers',
     tree: """
             <root>
              └─ yield [0..0]"""
-    [0, /yield/]
-    [0, /private/]
+    [ 0, 0,  /yield/   ]
+    [ 0, 11, /private/ ]
 
 test.parsing 'unclosed parentheses in block',
     code: """
@@ -174,14 +179,15 @@ test.parsing 'unclosed parentheses in block',
             <root>
              ├─ f [0..1]
              └─ g [2..2]"""
-    [1, /\(/]
-    [1, /\[/]
-    [1, /{/]
+    [ 1, 8, /\(/ ]
+    [ 1, 8, /\[/ ]
+    [ 1, 8, /{/  ]
 
 test.parsing 'indentation errors',
     code: """
             f = ->
-              1 /
+              ->
+                1 /
             0
             g = ->
             0
@@ -189,11 +195,21 @@ test.parsing 'indentation errors',
             h = ->"""
     tree: """
             <root>
-             ├─ f [0..1]
-             ├─ g [3..3]
-             └─ h [6..6]"""
-    [2, /missing indentation/i]
-    [5, /unexpected indentation/i]
+             ├─ f [0..2]
+             ├─ g [4..4]
+             └─ h [7..7]"""
+    [ 3, 0,     /missing indentation/i    ]
+    [ 6, 0, 1,  /unexpected indentation/i ]
+
+test.parsing 'unexpected end',
+    code: """
+        a/"""
+    [0, 2, /unexpected end/i]
+
+test.parsing 'unexpected end while in block',
+    code: """
+        f = -> a/"""
+    [0, 8, /unexpected end/i]
 
 test.parsing 'code parameters',
     config:
@@ -218,8 +234,8 @@ test.parsing 'illegal code parameters',
     tree: """
             <root>
              └─ f(eval, arguments) [0..0]"""
-    [0, /eval/]
-    [0, /arguments/]
+    [ 0,  5,  8, /eval/     ]
+    [ 0, 11, 19, /arguments/]
     # NOTE
     # Illegal parameter names in destructuring assignments are processed at
     # compile time and will not produce errors while parsing. Hence no test
@@ -235,10 +251,10 @@ test.parsing 'with line offset',
             <root>
              └─ f [#{line_off}..#{line_off+1}]
                  └─ yield [#{line_off+1}..#{line_off+1}]"""
-    [line_off, /eval/]
-    [line_off, /arguments/]
-    [line_off+1, /yield/]
-    [line_off+1, /private/]
+    [ line_off,    5,  8, /eval/      ]
+    [ line_off,   11, 19, /arguments/ ]
+    [ line_off+1,  4,     /yield/     ]
+    [ line_off+1, 15,     /private/   ]
 
 test.parsing 'special class names',
     code: """
@@ -277,7 +293,7 @@ test.parsing 'special class names',
                  ├─ -eval.hidden [13..13]
                  ├─ @static [14..14]
                  └─  method [15..15]"""
-    [8, /eval/]
+    [8, 10, 13, /eval/]
 
 test.compiling 'harmless code',
     code: """
@@ -300,8 +316,8 @@ test.compiling 'with lexer errors',
             class yield
             private = ([eval], {arguments}) ->"""
     compiled: null
-    [0, /yield/]
-    [1, /private/]
+    [ 0, 6, /yield/   ]
+    [ 1, 0, /private/ ]
     # NOTE
     # The compiler should not be executed if errors have been encountered by
     # lexer or parser. The compiler errors on the last code line should
@@ -312,8 +328,8 @@ test.compiling 'with parser errors',
             f = (eval, arguments) ->
             g = ([eval], {arguments}) ->"""
     compiled: null
-    [0, /eval/]
-    [0, /arguments/]
+    [ 0,  5,  8, /eval/     ]
+    [ 0, 11, 19, /arguments/]
     # NOTE
     # The compiler should not be executed if errors have been encountered by
     # lexer or parser. The compiler errors on the last code line should
@@ -323,8 +339,8 @@ test.compiling 'with compiler errors',
     code: """
             f = ([eval], {arguments}) ->"""
     compiled: null
-    [0, /eval/]
-    [0, /arguments/]
+    [ 0,  6,  9, /eval/     ]
+    [ 0, 14, 22, /arguments/]
 
 test.compiling 'with lexer and parser errors and line offset',
     config:
@@ -334,10 +350,10 @@ test.compiling 'with lexer and parser errors and line offset',
             f = (eval, arguments) ->
             g = ([eval], {arguments}) ->"""
     compiled: null
-    [line_off, /private/]
-    [line_off, /yield/]
-    [line_off+1, /eval/]
-    [line_off+1, /arguments/]
+    [ line_off,    0,     /private/   ]
+    [ line_off,   13,     /yield/     ]
+    [ line_off+1,  5, 8,  /eval/      ]
+    [ line_off+1, 11, 19, /arguments/ ]
     # NOTE
     # The compiler should not be executed if errors have been encountered by
     # lexer or parser. The compiler errors on the last code line should
@@ -349,9 +365,8 @@ test.compiling 'with compiler error and line offset',
     code: """
             g = ([eval], {arguments}) ->"""
     compiled: null
-    [line_off, /eval/]
-    [line_off, /arguments/]
+    [ line_off,  6,  9, /eval/      ]
+    [ line_off, 14, 22, /arguments/ ]
 
-
-if test.failed
-    process.stdout.on 'drain', -> process.exit(1)
+process.on 'exit', ->
+    if test.failed then process.exit 1
