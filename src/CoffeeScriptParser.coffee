@@ -1,65 +1,107 @@
-# ## Global objects and helpers
+# CoffeeScript parser and tree builder
+# ====================================
 
-# AST nodes
 Nodes = require './nodes'
 
-# Unified output to stderr for node.js and Rhino.
-print_error =   if java?
-                    (args...) -> java.lang.System.err.println args.join(' ')
-                else
-                    (args...) -> console.error args...
+# Parser configuration
+# --------------------
+#
+# The parser and tree builder accepts a `config` object that holds configuration
+# and callbacks. `default_config` provides the default value/implementation for
+# all possible keys.
+default_config =
+    # Line number offset
+    line: 0
 
-# ## Lexer
-class Lexer extends LexerParent = require('./lexer').Lexer
-    {last} = require './helpers'
-    {INVERSES} = require './rewriter'
+    # Whether to format function parameters and append to name.
+    displayCodeParameters: no
 
-    constructor: (report_error) ->
-        # Override error to just report (instead of throwing) and return to
-        # lexing. Do globally so it works in interpolations as well (for which
-        # a new lexer will be instantiated).
-        self = this
-        LexerParent::error = (message) ->
-            self.failed = true
-            report_error message,
-                first_line: @chunkLine
-                first_column: @chunkColumn
+    # Whether to show `task` invocations.
+    isCakefile: no
 
-    # Reset failed flag before lexing.
-    tokenize: ->
-        @failed = false
-        return super
+    # Report an error from lexer, parser or compiler to the user.
+    # Location-arguments are 0-based. If the error has only a start location or
+    # spans multiple lines `last_column` is `null`. If no location data is
+    # available all location-arguments are `null`.
+    reportError: (message, first_line, first_column, last_column) ->
+        print_error "#{first_line ? '?'}: #{message}"
 
-    # Redefine `pair` to be more forgiving for unclosed parenthesis.
-    pair: (tag) ->
-        if tag is wanted = last @ends
-            @ends.pop()
-        else if wanted is 'OUTDENT'
-            # Auto-close INDENT
-            @indent -= size = last @indents
-            @outdentToken size, true
-            @pair tag
-        else if tag is 'OUTDENT' and wanted in [')','}',']']
-            # auto-close and report unmatched parenthesis in indented blocks
-            @error "unclosed #{INVERSES[wanted]}"
-            @token wanted, wanted
-            @ends.pop()
-            @pair tag
-        # Unmatched tags will be reported in Parser.
+    # Logger for internal errors.
+    logError: (message) ->
+        print_error message
 
-# ## Parser
+    # Build a node of the structure tree.
+    # The returned node must have a method `add` for appending a child node.
+    makeTreeNode: (name, type, qualifier, first_line, last_line) ->
+        new TreeNode(name, type, qualifier, first_line, last_line)
+
+# ### Helpers for the default configuration
+
+# Unified output to stderr
+print_error =
+    if java?
+        (args...) -> java.lang.System.err.println args.join(' ')
+    else
+        (args...) -> console.error args...
+
+# A simple structure tree for console output and testing.
+class TreeNode
+    PREFIX = static: '@', hidden: '-', property: ' ', constructor: ' '
+    POSTFIX = class: ' class', task: ' task'
+    constructor: (name, type, qualifier, first_line, last_line) ->
+        @children = []
+        @name_display = [ PREFIX[qualifier], name, POSTFIX[type] ]
+        if first_line?
+            @name_display.push ' [', first_line, '..', last_line, ']'
+    add: (node) ->
+        @children.push node
+    format: (parts=[], prefix='', is_last) ->
+        if is_not_root = parts.length
+            parts.push prefix
+            if is_last
+                parts.push  ' └─ '
+                prefix +=   '    '
+            else
+                parts.push  ' ├─ '
+                prefix +=   ' │  '
+        parts.push @name_display...
+        last_index = @children.length-1
+        for child, i in @children
+            parts.push '\n'
+            child.format(parts, prefix, i is last_index)
+        return parts.join('') unless is_not_root
+
+# Lexer
+# -----
+class Lexer extends require('./lexer').Lexer
+    constructor: (@report_error) ->
+
+    # construct a new Lexer for nested code in interpolations.
+    newLexer: -> new Lexer(@report_error)
+
+    # Override error to just report (instead of throwing) and return to lexing.
+    error: (message) ->
+        @report_error message,
+            first_line: @chunkLine
+            first_column: @chunkColumn
+
+# Parser
+# ------
 class Parser extends require('./parser').Parser
     constructor: (@report_error) ->
         @yy = Nodes
 
         # Errors from node construction and compilation
-        parser = this
-        @yy.Base::error = (message) -> parser.error message, @locationData
+        @yy.Base::error = (message) -> report_error message, @locationData
 
-    # Reset `failed` flag before parsing.
+    # Suppress exception from failed error recovery.
     parse: ->
-        @failed = false
-        return super
+        try
+            return super
+        catch error
+            unless /Parsing halted/.test error.message
+                throw error
+            @report_error error.message
 
     # Add a `.yylloc` to lexer.
     lexer:
@@ -111,46 +153,43 @@ class Parser extends require('./parser').Parser
             message ?= "unexpected #{tag}"
         location ?= @lexer.yylloc
 
-        @error message, location
-
-    error: (message, location) ->
-        @failed = true
         @report_error message, location
 
-# ## Parser and tree builder
+
+# Parser and tree builder
+# -----------------------
 class CoffeeScriptParser
     constructor: (@config={}) ->
-        # set default config values
-        @config.displayCodeParameters ?= false
-        @config.isCakefile ?= false
-        @config.line ?= 0
-
-        # instantiate lexer and parser
+        for key of default_config when not @config[key]?
+            @config[key] = default_config[key]
         @lexer = new Lexer(@report_error)
         @parser = new Parser(@report_error)
 
-    #### Interface
+    # ### API / "public" methods
     nodes: (source) ->
+        @failed = no
         source = String source  # make sure it's a javascript string
         try
             return @parser.parse @lexer.tokenize source, line: @config.line
         catch error
-            @parser.failed = true
+            @failed = yes
             @log_error "Parser error: #{error}"
-        null
+            return null
 
     compile: (source) ->
-        ast = @nodes(source)
-        if ast and not (@lexer.failed or @parser.failed)
+        @failed = no
+        ast = @nodes source
+        if ast and not @failed
             try
                 result = ast.compile(bare: true)
             catch error
-                @parser.failed = true
+                @failed = yes
                 @log_error "Compiler error: #{error}"
-            if @parser.failed
-                # Compile errors set `failed` to true (via Base::error).
-                result = null
-        result
+
+        if @failed
+            null
+        else
+            result
 
     parse: (source, root='<file>') ->
         if typeof root is 'string'
@@ -164,11 +203,7 @@ class CoffeeScriptParser
                 @log_error "Tree builder error: #{error}"
         return root
 
-    #### Overrideable functions
-    #   These may be redefined by their CamelCase counterparts in the `config`
-    #   object specified on instantiation.
-
-    # Report an error from lexer, parser or compiler to the user.
+    # ### callbacks
     report_error: (message, location = {}) =>
         {first_line, first_column, last_line, last_column} = location
         if not first_line?
@@ -177,56 +212,16 @@ class CoffeeScriptParser
             last_column = null
         else if first_line != last_line
             last_column = null
+        @config.reportError message, first_line, first_column, last_column
+        @failed = yes
 
-        if @config.reportError?
-            @config.reportError message, first_line, first_column, last_column
-        else
-            print_error "#{first_line ? '?'}: #{message}"
-
-    # Error logger
     log_error: (message...) ->
-        if @config.logError?
-            @config.logError message.join(' ')
-        else
-            print_error message...
+        @config.logError message.join(' ')
 
-    # Build a node of the structure tree.
-    # It must have a constructor with the same signature as this function and
-    # a method `add` for adding child nodes.
     make_tree_node: (name, type, qualifier, first_line, last_line) ->
-        if @config.makeTreeNode?
-            @config.makeTreeNode(name, type, qualifier, first_line, last_line)
-        else
-            new TreeNode(name, type, qualifier, first_line, last_line)
+        @config.makeTreeNode(name, type, qualifier, first_line, last_line)
 
-    # A simple structure tree / node for console output and testing.
-    class TreeNode
-        PREFIX = static: '@', hidden: '-', property: ' ', constructor: ' '
-        POSTFIX = class: ' class', task: ' task'
-        constructor: (name, type, qualifier, first_line, last_line) ->
-            @children = []
-            @name_display = [ PREFIX[qualifier], name, POSTFIX[type] ]
-            if first_line?
-                @name_display.push ' [', first_line, '..', last_line, ']'
-        add: (node) ->
-            @children.push node
-        format: (parts=[], prefix='', is_last) ->
-            if is_not_root = parts.length
-                parts.push prefix
-                if is_last
-                    parts.push  ' └─ '
-                    prefix +=   '    '
-                else
-                    parts.push  ' ├─ '
-                    prefix +=   ' │  '
-            parts.push @name_display...
-            last_index = @children.length-1
-            for child, i in @children
-                parts.push '\n'
-                child.format(parts, prefix, i is last_index)
-            return parts.join('') unless is_not_root
-
-    #### AST walker
+    # ### AST walker
     walk_ast: (nodes, parent, parent_class, in_prototype) ->
         for node in nodes
             node_name = null
@@ -352,7 +347,7 @@ class CoffeeScriptParser
 
                 @walk_ast   node.body.expressions,
                             tree_node,
-                            node_is_class and (@get_class_name(node) or true),
+                            node_is_class and (get_class_name(node) or true),
                             false
                 parent.add tree_node
         return
@@ -362,7 +357,7 @@ class CoffeeScriptParser
     # Get the "real" name from a Class node.
     # This is the name of the constructor function in the compiled
     # JavaScript.
-    get_class_name: (node) ->
+    get_class_name = (node) ->
         name = node.determineName() or '_Class'
         name = "_#{name}" if name.reserved
         return name
@@ -429,7 +424,8 @@ class CoffeeScriptParser
         parts
 
 
-# ## Interface
+# Module Interface
+# ----------------
 
 exports.CoffeeScriptParser = CoffeeScriptParser
 

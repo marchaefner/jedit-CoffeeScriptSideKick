@@ -1,7 +1,12 @@
 # This is a modified copy from the CoffeeScript source.
-#   * Rephrased NUMBER regex to improve speed in Rhino.
-#   * OUTDENT tokens end before the less-indented line.
+#
+#   * Changed location of OUTDENT tokens to end before the less-indented line.
+#   * Auto-close and report unmatched parenthesis in indented blocks.
 #   * Removed premature error reporting for assignment to reserved identifier.
+#   * Rephrased NUMBER regex to improve speed in Rhino.
+#
+# Changes are marked with **CHANGED**
+
 
 # The CoffeeScript Lexer. Uses a series of token-matching regexes to attempt
 # matches against the beginning of the source code. When a match is found,
@@ -17,8 +22,8 @@
 {Rewriter, INVERSES} = require './rewriter'
 
 # Import the helpers we need.
-{count, starts, compact, last, invertLiterate, locationDataToString,
-throwSyntaxError} = require './helpers'
+{count, starts, compact, last, repeat, invertLiterate,
+locationDataToString,  throwSyntaxError} = require './helpers'
 
 # The Lexer Class
 # ---------------
@@ -181,9 +186,9 @@ exports.Lexer = class Lexer
       @error "octal literal '#{number}' must be prefixed with '0o'"
     lexedLength = number.length
     if octalLiteral = /^0o([0-7]+)/.exec number
-      number = '0x' + (parseInt octalLiteral[1], 8).toString 16
+      number = '0x' + parseInt(octalLiteral[1], 8).toString 16
     if binaryLiteral = /^0b([01]+)/.exec number
-      number = '0x' + (parseInt binaryLiteral[1], 2).toString 16
+      number = '0x' + parseInt(binaryLiteral[1], 2).toString 16
     @token 'NUMBER', number, 0, lexedLength
     lexedLength
 
@@ -227,7 +232,7 @@ exports.Lexer = class Lexer
     if here
       @token 'HERECOMMENT',
         (@sanitizeHeredoc here,
-          herecomment: true, indent: Array(@indent + 1).join(' ')),
+          herecomment: true, indent: repeat ' ', @indent),
         0, comment.length
     comment.length
 
@@ -334,7 +339,7 @@ exports.Lexer = class Lexer
       @outdebt = @indebt = 0
     else
       @indebt = 0
-      # CHANGED:
+      # **CHANGED**
       # Do not include any whitespace after the last newline character. This
       # prevents lines shared between adjacent blocks.
       @outdentToken @indent - size, noNewlines, indent.length - size - 1
@@ -401,6 +406,12 @@ exports.Lexer = class Lexer
     tag  = value
     prev = last @tokens
     if value is '=' and prev
+      # **CHANGED**
+      # Removed error reporting for assignment to an illegal identifier. This
+      # error will be reported by the parser (at the correct location, instead
+      # of the `=`).
+
+      #
       if prev[1] in ['||', '&&']
         prev[0] = 'COMPOUND_ASSIGN'
         prev[1] += '='
@@ -549,7 +560,7 @@ exports.Lexer = class Lexer
       inner = expr[1...-1]
       if inner.length
         [line, column] = @getLineAndColumnFromChunk(strOffset + i + 1)
-        nested = new Lexer().tokenize inner, line: line, column: column, rewrite: off
+        nested = @newLexer().tokenize inner, line: line, column: column, rewrite: off
         popped = nested.pop()
         popped = nested.shift() if nested[0]?[0] is 'TERMINATOR'
         if len = nested.length
@@ -601,11 +612,16 @@ exports.Lexer = class Lexer
       @tokens.push rparen
     tokens
 
+  # **CHANGED**
+  # Rewritten `pair` to be more forgiving for unclosed parenthesis. (See last
+  # `else if`.)
+  #
   # Pairs up a closing token, ensuring that all listed pairs of tokens are
   # correctly balanced throughout the course of the token stream.
   pair: (tag) ->
-    unless tag is wanted = last @ends
-      @error "unmatched #{tag}" unless 'OUTDENT' is wanted
+    if tag is wanted = last @ends
+      @ends.pop()
+    else if wanted is 'OUTDENT'
       # Auto-close INDENT to support syntax like this:
       #
       #     el.click((event) ->
@@ -613,8 +629,15 @@ exports.Lexer = class Lexer
       #
       @indent -= size = last @indents
       @outdentToken size, true
-      return @pair tag
-    @ends.pop()
+      @pair tag
+    else if tag is 'OUTDENT' and wanted in [')','}',']']
+      # Auto-close and report unmatched parenthesis in indented blocks. This
+      # allows us to skip this error and continue parsing the remaining code.
+      @error "unclosed #{INVERSES[wanted]}"
+      @token wanted, wanted
+      @ends.pop()
+      @pair tag
+    # Unmatched tags will be reported in Parser.
 
   # Helpers
   # -------
@@ -636,7 +659,7 @@ exports.Lexer = class Lexer
     column = @chunkColumn
     if lineCount > 0
       lines = string.split '\n'
-      column = (last lines).length
+      column = last(lines).length
     else
       column += string.length
 
@@ -653,7 +676,7 @@ exports.Lexer = class Lexer
     # so if last_column == first_column, then we're looking at a character of length 1.
     lastCharacter = Math.max 0, length - 1
     [locationData.last_line, locationData.last_column] =
-      @getLineAndColumnFromChunk offsetInChunk + (lastCharacter)
+      @getLineAndColumnFromChunk offsetInChunk + lastCharacter
 
     token = [tag, value, locationData]
 
@@ -759,12 +782,12 @@ IDENTIFIER = /// ^
   ( [^\n\S]* : (?!:) )?  # Is this a property name?
 ///
 
-# CHANGED:
-# Moved the ^ assertion to the beginning of the expression (was at the
+# **CHANGED**
+# Moved the `^` assertion to the beginning of the expression (was at the
 # beginning of each alternative)
-# Within in Rhino 1.7R4, this reduces execution time of @numberToken from
-# about 65% of the whole lexing process, to a more appropriate 0.5%, making
-# @tokenize about 5 times faster.
+# Within in Rhino 1.7R4, this reduces execution time of `@numberToken` from
+# about 65% of the whole lexing process to a more appropriate 0.5%, making
+# `@tokenize` about 5 times faster.
 # (No significant difference could be measured with node.js.)
 NUMBER     = /// ^ (
   ?: 0b[01]+                   # binary
