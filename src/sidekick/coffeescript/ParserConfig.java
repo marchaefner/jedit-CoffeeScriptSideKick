@@ -14,7 +14,8 @@ import errorlist.ErrorSource;
  */
 public class ParserConfig {
     public boolean showErrors;
-    public boolean displayCodeParameters = false;;
+    public boolean displayCodeParameters = false;
+    public boolean showDoccoHeadings = false;
     public boolean isCakefile = false;
     public int line = 0;
 
@@ -35,6 +36,7 @@ public class ParserConfig {
         ParserConfig config = new ParserConfig(buffer, errorSource);
         config.showErrors = Options.getBool("showErrors");
         config.displayCodeParameters = Options.getBool("displayCodeParameters");
+        config.showDoccoHeadings = Options.getBool("showDoccoHeadings");
         config.isCakefile = buffer.getName().equals("Cakefile");
         return config;
     }

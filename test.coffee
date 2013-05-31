@@ -161,6 +161,45 @@ test.parsing 'tasks in Cakefile',
              └─ clear task [2..2]
           """
 
+test.parsing 'docco headings',
+    config:
+        showDoccoHeadings: true
+    code: """
+            # 1. Heading
+            # ==========
+            # 1.1. Heading lvl 2
+            # ------------------
+            f = ->
+                # ### 1.1.1 Heading lvl 3
+                f1 = ->
+                # ### 1.1.2 Heading lvl 3
+                f2 = ->
+            # ## 1.2. Heading lvl 2
+            g = ->
+
+            # # 2. Heading lvl 1
+            class C # ## not recognized as heading
+            class D # Also not a heading
+            # --------------------------
+            class E
+          """
+    tree: """
+            <root>
+             ├─ 1. Heading [0..1]
+             │   ├─ 1.1. Heading lvl 2 [2..3]
+             │   │   └─ f [4..8]
+             │   │       ├─ 1.1.1 Heading lvl 3 [5..5]
+             │   │       │   └─ f1 [6..6]
+             │   │       └─ 1.1.2 Heading lvl 3 [7..7]
+             │   │           └─ f2 [8..8]
+             │   └─ 1.2. Heading lvl 2 [9..9]
+             │       └─ g [10..10]
+             └─ 2. Heading lvl 1 [12..12]
+                 ├─ C class [13..13]
+                 ├─ D class [14..14]
+                 └─ E class [16..16]
+          """
+
 test.parsing 'reserved identifiers',
     code: """
             yield = -> private"""

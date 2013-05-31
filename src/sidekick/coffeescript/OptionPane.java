@@ -24,6 +24,7 @@ public class OptionPane extends AbstractOptionPane {
 
     private JCheckBox showErrors;
     private JCheckBox displayCodeParameters;
+    private JCheckBox showDoccoHeadings;
     private JCheckBox showIcons;
     private JCheckBox showPrefix;
     private JCheckBox showType;
@@ -35,6 +36,7 @@ public class OptionPane extends AbstractOptionPane {
         addComponent(new JLabel("<html><b>Display Options"));
         addComponent(Box.createVerticalStrut(4));
         displayCodeParameters = addCheckBox("displayCodeParameters");
+        showDoccoHeadings = addCheckBox("showDoccoHeadings");
         showIcons = addCheckBox("showIcons");
         showPrefix = addCheckBox("showPrefix");
         showType = addCheckBox("showType");
@@ -43,6 +45,7 @@ public class OptionPane extends AbstractOptionPane {
     protected void _save() {
         saveCheckBox("showErrors", showErrors);
         saveCheckBox("displayCodeParameters", displayCodeParameters);
+        saveCheckBox("showDoccoHeadings", showDoccoHeadings);
         saveCheckBox("showIcons", showIcons);
         saveCheckBox("showPrefix", showPrefix);
         saveCheckBox("showType", showType);

@@ -1,4 +1,4 @@
-  * Delegate embedded JavaScript to the appropiate (partial) parser.
+  * Delegate embedded JavaScript to the appropriate (partial) parser.
 
 Recognize more stuff
 --------------------
@@ -20,6 +20,4 @@ Rewrite AST walker / add a "Scope Mode"
 
 Tricky stuff
 ------------
-  * docco support: recognize markdown headers in comments (which are discarded
-    by the lexer)
   * class' `extends` values (which are expressions).

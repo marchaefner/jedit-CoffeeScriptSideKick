@@ -1,8 +1,10 @@
 # This is a modified copy from the CoffeeScript source.
 #
+#   * Delegate single line comments to `@lineComment` (if it exists).
 #   * Changed location of OUTDENT tokens to end before the less-indented line.
-#   * Auto-close and report unmatched parenthesis in indented blocks.
 #   * Removed premature error reporting for assignment to reserved identifier.
+#   * Construct child-lexer for interpolations via `@newLexer` factory.
+#   * Auto-close and report unmatched parenthesis in indented blocks.
 #   * Rephrased NUMBER regex to improve speed in Rhino.
 #
 # Changes are marked with **CHANGED**
@@ -234,6 +236,10 @@ exports.Lexer = class Lexer
         (@sanitizeHeredoc here,
           herecomment: true, indent: repeat ' ', @indent),
         0, comment.length
+    # **CHANGED**
+    # Call `lineComment` to process line comments.
+    else
+      @lineComment? comment
     comment.length
 
   # Matches JavaScript interpolated directly into the source via backticks.
@@ -560,6 +566,8 @@ exports.Lexer = class Lexer
       inner = expr[1...-1]
       if inner.length
         [line, column] = @getLineAndColumnFromChunk(strOffset + i + 1)
+        # **CHANGED**
+        # Get nested lexer from `@newLexer` factory.
         nested = @newLexer().tokenize inner, line: line, column: column, rewrite: off
         popped = nested.pop()
         popped = nested.shift() if nested[0]?[0] is 'TERMINATOR'

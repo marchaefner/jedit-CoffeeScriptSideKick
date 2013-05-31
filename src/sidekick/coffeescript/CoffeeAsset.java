@@ -85,6 +85,11 @@ class CoffeeAsset extends Asset {
             }
         }
 
+        // format heading
+        if (type.equals("heading")) {
+            name = "<html><i>" + name;
+        }
+
         setName(name);
     }
 

@@ -16,6 +16,9 @@ default_config =
     # Whether to format function parameters and append to name.
     displayCodeParameters: no
 
+    # Whether to show docco-style headings.
+    showDoccoHeadings: no
+
     # Whether to show `task` invocations.
     isCakefile: no
 
@@ -77,13 +80,88 @@ class Lexer extends require('./lexer').Lexer
     constructor: (@report_error) ->
 
     # construct a new Lexer for nested code in interpolations.
-    newLexer: -> new Lexer(@report_error)
+    newLexer: -> new @constructor(@report_error)
 
     # Override error to just report (instead of throwing) and return to lexing.
     error: (message) ->
         @report_error message,
             first_line: @chunkLine
             first_column: @chunkColumn
+
+# A lexer that extracts headings from single-line comments.
+class DoccoHeadingLexer extends Lexer
+    constructor: ->
+        super
+        @headings = []
+        @translate_location = {}
+
+    DOCCO_HEADING = ///
+        # comment start
+        ( ^ | \n ) [^\S\n]* \# [^\S\n]?
+        (?:
+            # atx-style heading
+            (\#{1,6}) [^\S\n]* (.*?) (?:[^\S\n]|\#)*
+            # setext-style heading
+          | [^\S\n]{0,3} (\S.*?) [^\S\n]*
+            \n [^\S\n]* \#
+            [^\S\n]? (?:(=){3,}|-{3,}) [^\S\n]*
+        )
+        # until the end of line
+        (?=\n|$)
+    ///g
+
+    # Process a comment chunk.
+    # A comment chunk may span multiple lines and ends at the line break before
+    # the next non-comment.
+    lineComment: (comment) ->
+        if @chunkColumn == 0
+            DOCCO_HEADING.lastIndex = 0
+        else if 0 <= index = comment.indexOf '\n'
+            DOCCO_HEADING.lastIndex = index
+        else
+            return
+
+        while match = DOCCO_HEADING.exec comment
+            {
+                1: leading_newline
+                2: atx_level
+                3: atx_text
+                4: setext_text
+                5: setext_level
+                index
+            } = match
+
+            index += 1 if leading_newline
+
+            start_location = @getLineAndColumnFromChunk index
+            end_location = @getLineAndColumnFromChunk DOCCO_HEADING.lastIndex-1
+
+            @headings.push
+                text:         atx_text or setext_text
+                level:        atx_level?.length or setext_level and 1 or 2
+                first_line:   start_location[0]
+                first_column: start_location[1]
+                last_line:    end_location[0]
+                last_column:  end_location[1]
+
+            if not prev_location
+                prev_location =
+                    if index == 0 then start_location
+                    else @getLineAndColumnFromChunk index - 1
+                last_location = @getLineAndColumnFromChunk comment.length
+                @translate_location[last_location.join(':')] = prev_location
+
+    # Override token construction to move the location of block-ending tokens in
+    # front of headings, so blocks don't overlap subsequent headings.
+    makeToken: ->
+        token = [tag, value, locationData] = super
+        if tag in ['OUTDENT', 'TERMINATOR']
+            {first_line, first_column, last_line, last_column} = locationData
+            if location = @translate_location["#{first_line}:#{first_column}"]
+                [locationData.first_line, locationData.first_column] = location
+            if location = @translate_location["#{last_line}:#{last_column}"]
+                [locationData.last_line, locationData.last_column] = location
+        token
 
 # Parser
 # ------
@@ -162,7 +240,10 @@ class CoffeeScriptParser
     constructor: (@config={}) ->
         for key of default_config when not @config[key]?
             @config[key] = default_config[key]
-        @lexer = new Lexer(@report_error)
+
+        @lexer =    if config.showDoccoHeadings
+                        new DoccoHeadingLexer @report_error
+                    else new Lexer @report_error
         @parser = new Parser(@report_error)
 
     # ### API / "public" methods
@@ -222,11 +303,33 @@ class CoffeeScriptParser
         @config.makeTreeNode(name, type, qualifier, first_line, last_line)
 
     # ### AST walker
-    walk_ast: (nodes, parent, parent_class, in_prototype) ->
+    walk_ast: (nodes, parent, parent_class, in_prototype, prev_parents) ->
         for node in nodes
+            # #### headings
+            # If a heading precedes the current node, use it as parent_node.
+            while @lexer.headings?[0]?.last_line < node.locationData.first_line
+                heading = @lexer.headings.shift()
+
+                prev_parents ?= [{node:parent, level:-1}]
+                for prev_parent, i in prev_parents
+                    break if prev_parent.level < heading.level
+                parent = prev_parent.node
+                prev_parents = prev_parents[i..]
+
+                heading_node = @make_tree_node  heading.text,
+                                                'heading'
+                                                ''
+                                                heading.first_line,
+                                                heading.last_line
+                parent.add heading_node
+                parent = heading_node
+                prev_parents.unshift
+                    node:   heading_node,
+                    level:  heading.level
+
             node_name = null
 
-            # **task** definitions in Cakefiles
+            # #### task definitions in Cakefiles
             if @config.isCakefile and
                     node instanceof Nodes.Call and
                     name_from_value(node.variable)?[0] is 'task' and
@@ -238,7 +341,7 @@ class CoffeeScriptParser
                                             node.locationData.first_line,
                                             node.locationData.last_line
                 continue
-            # **assign expression**
+            # #### assign expression
             else if node instanceof Nodes.Assign
                 # may be chained, so we collect all `variable`s first.
                 assignees = [node.variable]
@@ -252,7 +355,7 @@ class CoffeeScriptParser
                     node_name = get_name(assignees)
                 else if node instanceof Nodes.Code
                     node_name = get_name(assignees)
-            # **class expression**
+            # #### class expression
             else if node_is_class = node instanceof Nodes.Class
                 node_name = get_name([node.variable])
             # **property assignments in class declarations**
@@ -265,7 +368,7 @@ class CoffeeScriptParser
                             parent_class,
                             true
                 continue
-            # **switch expression**
+            # #### switch expression
             # Collect expressions from when blocks walk over them with the
             # current context.
             else if node instanceof Nodes.Switch
@@ -277,9 +380,10 @@ class CoffeeScriptParser
                 @walk_ast   expressions,
                             parent,
                             parent_class,
-                            in_prototype
+                            in_prototype,
+                            prev_parents
                 continue
-            # **Other expressions with a body** (e.g. `while`, `if`, `for`)
+            # #### Other expressions with a body (e.g. `while`, `if`, `for`)
             # Simply walk over child expressions with the current context.
             else if node.body?
                 # if expressions may have multiple bodies.
@@ -296,9 +400,11 @@ class CoffeeScriptParser
                 @walk_ast   expressions,
                             parent,
                             parent_class,
-                            in_prototype
+                            in_prototype,
+                            prev_parents
                 continue
 
+            # #### Add node to tree
             # If we have recognized a node with a viable name, make a tree
             # node and add it to the parent.
             if node_name

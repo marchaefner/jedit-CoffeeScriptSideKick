@@ -28,9 +28,8 @@
     <ulink url="http://coffeescript.org/">CoffeeScript</ulink> language.
   </para>
   <para>
-    Contains the CoffeeScript 1.4.0 parser which has been modified to record
-    line numbers and handle erroneous constructs better. The resulting AST
-    is used to construct the SideKick tree.
+    A modified version of CoffeeScript is used for parsing.
+    The Sidekick tree is constructed from the resulting AST.
   </para>
 </chapter>
 
@@ -51,6 +50,12 @@
         Destructuring parameters are partially supported: In objects only
         the lookup keys are displayed. If a key in an array is to complex it
         will be replaced by <code>&lt;?&gt;</code>.</para></glossdef>
+    </glossentry>
+    <glossentry>
+      <glossterm>Show docco-style headings</glossterm>
+      <glossdef><para>
+        Show Markdown headings in single-line comments in the structure tree.
+      </para></glossdef>
     </glossentry>
     <glossentry>
       <glossterm>Show icons</glossterm>
