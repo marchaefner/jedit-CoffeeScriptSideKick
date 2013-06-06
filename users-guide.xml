@@ -28,7 +28,7 @@
     <ulink url="http://coffeescript.org/">CoffeeScript</ulink> language.
   </para>
   <para>
-    A modified version of CoffeeScript is used for parsing.
+    A modified version of CoffeeScript 1.6.3 is used for parsing.
     The Sidekick tree is constructed from the resulting AST.
   </para>
 </chapter>
