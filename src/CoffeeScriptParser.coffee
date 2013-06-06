@@ -471,8 +471,7 @@ class CoffeeScriptParser
     # Get name (an array of strings) from a Value node.
     # If this fails, return nothing.
     name_from_value = (value) ->
-        if not value.base instanceof Nodes.Literal
-            return
+        return unless value.base instanceof Nodes.Literal
         name = [value.base.value]
         for prop in value.properties
             part = null
