@@ -18,6 +18,7 @@ public class ParserConfig {
     public boolean showDoccoHeadings = false;
     public boolean isCakefile = false;
     public int line = 0;
+    public int column = 0;
 
     private final Buffer buffer;
     private final DefaultErrorSource errorSource;

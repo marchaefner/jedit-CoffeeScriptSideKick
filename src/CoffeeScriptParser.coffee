@@ -13,6 +13,9 @@ default_config =
     # Line number offset
     line: 0
 
+    # Column offset for the first line.
+    column: 0
+
     # Whether to format function parameters and append to name.
     displayCodeParameters: no
 
@@ -251,7 +254,7 @@ class CoffeeScriptParser
         @failed = no
         source = String source  # make sure it's a javascript string
         try
-            return @parser.parse @lexer.tokenize source, line: @config.line
+            return @parser.parse @lexer.tokenize source, @config
         catch error
             @failed = yes
             @log_error "Parser error: #{error}"

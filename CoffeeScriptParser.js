@@ -5551,6 +5551,7 @@ exports.Parser = Parser;
 
   default_config = {
     line: 0,
+    column: 0,
     displayCodeParameters: false,
     showDoccoHeadings: false,
     isCakefile: false,
@@ -5847,9 +5848,7 @@ exports.Parser = Parser;
       this.failed = false;
       source = String(source);
       try {
-        return this.parser.parse(this.lexer.tokenize(source, {
-          line: this.config.line
-        }));
+        return this.parser.parse(this.lexer.tokenize(source, this.config));
       } catch (_error) {
         error = _error;
         this.failed = true;
@@ -6185,4 +6184,4 @@ exports.Parser = Parser;
 
 }).call(this);
 
-// 08257d8ee8ff63b0aafcb43b6723a172
+// 92a3ab6732c0b88d656e38f4f76e12f6

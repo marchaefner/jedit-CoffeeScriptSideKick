@@ -54,10 +54,11 @@ public class CoffeeScriptSideKickPlugin extends EditPlugin {
         StringList results = new StringList();
         ICoffeeScriptParser parser = new CoffeeScriptParser();
         TextArea textArea = view.getTextArea();
+        Buffer buffer = view.getBuffer();
         DefaultErrorSource errorSource = getErrorSource(view);
 
         ParserConfig config =
-                ParserConfig.forCompiling(view.getBuffer(), errorSource);
+                ParserConfig.forCompiling(buffer, errorSource);
         errorSource.clear();
 
         if (textArea.getSelectionCount() == 0) {
@@ -65,15 +66,17 @@ public class CoffeeScriptSideKickPlugin extends EditPlugin {
         } else {
             for (Selection sel : textArea.getSelection()) {
                 config.line = sel.getStartLine();
+                config.column =
+                        sel.getStart() - buffer.getLineStartOffset(config.line);
                 results.add(
                     parser.compile(textArea.getSelectedText(sel), config));
             }
         }
         if (errorSource.getErrorCount() == 0) {
-            Buffer buffer = jEdit.newFile(view.getEditPane());
-            buffer.insert(0, results.join("\n").trim());
-            buffer.setMode("javascript");
-            buffer.setDirty(false);
+            Buffer outputBuffer = jEdit.newFile(view.getEditPane());
+            outputBuffer.insert(0, results.join("\n").trim());
+            outputBuffer.setMode("javascript");
+            outputBuffer.setDirty(false);
         }
     }
 }
