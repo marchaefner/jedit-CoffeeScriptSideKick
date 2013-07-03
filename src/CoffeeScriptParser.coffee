@@ -180,8 +180,7 @@ class Parser extends require('./parser').Parser
         try
             return super
         catch error
-            unless /Parsing halted/.test error.message
-                throw error
+            throw error unless /Parsing halted/.test error.message
             @report_error error.message
 
     # Add a `.yylloc` to lexer.
@@ -244,24 +243,33 @@ class CoffeeScriptParser
         for key of default_config when not @config[key]?
             @config[key] = default_config[key]
 
-        @lexer =    if config.showDoccoHeadings
-                        new DoccoHeadingLexer @report_error
-                    else new Lexer @report_error
+        @lexer =  new (
+                  if config.showDoccoHeadings then DoccoHeadingLexer else Lexer
+                  ) @report_error
         @parser = new Parser(@report_error)
 
     # ### API / "public" methods
-    nodes: (source) ->
+    tokens: (source) ->
         @failed = no
         source = String source  # make sure it's a javascript string
         try
-            return @parser.parse @lexer.tokenize source, @config
+            return @lexer.tokenize source,
+                line:   @config.line,
+                column: @config.column
         catch error
             @failed = yes
-            @log_error "Parser error: #{error}"
+            @log_error "Lexer error: #{error}"
+            return []
+
+    nodes: (source) ->
+        try
+            return @parser.parse @tokens source
+        catch error
+            @failed = yes
+            @log_error "Parser error: #{error?.stack}"
             return null
 
     compile: (source) ->
-        @failed = no
         ast = @nodes source
         if ast and not @failed
             try
@@ -537,11 +545,14 @@ class CoffeeScriptParser
 
 exports.CoffeeScriptParser = CoffeeScriptParser
 
+exports.tokens = (source, config) ->
+    (new CoffeeScriptParser config).tokens source
+
 exports.nodes = (source, config) ->
-    return (new CoffeeScriptParser(config)).nodes(source)
+    (new CoffeeScriptParser config).nodes source
 
 exports.compile = (source, config) ->
-    return (new CoffeeScriptParser(config)).compile(source)
+    (new CoffeeScriptParser config).compile source
 
 exports.parse = (source, root, config) ->
-    return (new CoffeeScriptParser(config)).parse(source, root)
+    (new CoffeeScriptParser config).parse source, root
