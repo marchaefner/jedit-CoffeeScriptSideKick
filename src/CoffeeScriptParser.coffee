@@ -181,7 +181,6 @@ class Parser extends require('./parser').Parser
             return super
         catch error
             throw error unless /Parsing halted/.test error.message
-            @report_error error.message
 
     # Add a `.yylloc` to lexer.
     lexer:
@@ -205,7 +204,7 @@ class Parser extends require('./parser').Parser
             t
 
     # Override Jison parser error function
-    parseError: (_, {line, token:tag}) ->
+    parseError: (_, {line, token:tag, recoverable}) ->
         switch tag
             when 'TERMINATOR'
                 message = 'unexpected end of expression'
@@ -235,6 +234,9 @@ class Parser extends require('./parser').Parser
 
         @report_error message, location
 
+        # If the parser can't recover it will throw the just reported error.
+        # Throw a more expectable error instead, so it won't get logged.
+        throw Error 'Parsing halted' unless recoverable
 
 # Parser and tree builder
 # -----------------------
